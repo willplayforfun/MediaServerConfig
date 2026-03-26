@@ -1,3 +1,6 @@
+# Secrets
+.env
+
 # Docker persistent data (generated at runtime)
 */config/
 */data/
