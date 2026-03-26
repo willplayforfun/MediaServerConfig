@@ -1,0 +1,8 @@
+# Docker persistent data (generated at runtime)
+*/config/
+*/data/
+*/cache/
+*/metadata/
+*/letsencrypt/
+*/generated/
+*/blobs/
