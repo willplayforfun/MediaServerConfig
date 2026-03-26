@@ -12,6 +12,7 @@ services:
     volumes:
       - ./nginx-proxy-manager/data:/data
       - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - ./nginx-configs/server_proxy.conf:/data/nginx/custom/server_proxy.conf:ro
 
   # ── Stash ──
   stash:
