@@ -14,6 +14,37 @@ services:
       - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
       - ./nginx-configs/server_proxy.conf:/data/nginx/custom/server_proxy.conf:ro
 
+  # ── Jellyfin ──
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - /srv/mergerfs/media/movies:/media/movies:ro
+      - /srv/mergerfs/media/tv:/media/tv:ro
+    devices:
+      - /dev/dri:/dev/dri    # Intel Quick Sync
+    environment:
+      - JELLYFIN_PublishedServerUrl=https://mlev.ddns.net/jellyfin
+
+  # ── Audiobookshelf ──
+  # Hardcoded /audiobookshelf base path. Works out of the box.
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    restart: unless-stopped
+    ports:
+      - "13378:80"
+    volumes:
+      - ./audiobookshelf/config:/config
+      - ./audiobookshelf/metadata:/metadata
+      - /srv/mergerfs/media/audiobooks:/audiobooks
+      - /srv/mergerfs/media/podcasts:/podcasts
+
   # ── Stash ──
   stash:
     image: stashapp/stash:latest
