@@ -87,7 +87,7 @@ services:
       - ./nginx-configs/helpsite.conf:/etc/nginx/conf.d/default.conf:ro
 
   noip-duc:
-    image: noip/noip-duc:latest
+    image: noipcom/noip-duc:latest
     container_name: noip-duc
     restart: unless-stopped
     environment:
