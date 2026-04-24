@@ -93,5 +93,5 @@ services:
     environment:
       - NOIP_USERNAME=${NOIP_USERNAME}
       - NOIP_PASSWORD=${NOIP_PASSWORD}
-      - NOIP_HOSTNAME=${NOIP_HOSTNAME}
+      - NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
     network_mode: host   # needed so it can detect your real public IP
