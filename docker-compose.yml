@@ -29,7 +29,7 @@ services:
     devices:
       - /dev/dri:/dev/dri    # Intel Quick Sync
     environment:
-      - JELLYFIN_PublishedServerUrl=https://mlev.ddns.net/jellyfin
+      - JELLYFIN_PublishedServerUrl=https://${NOIP_NAME}.ddns.net/jellyfin
 
   # ── Audiobookshelf ──
   # Hardcoded /audiobookshelf base path. Works out of the box.

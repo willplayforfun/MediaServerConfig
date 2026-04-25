@@ -47,15 +47,15 @@ If you are comfortable using SSH, it can be easier for the next terminal steps h
 
 Either with a keyboard connected to the server or via SSH:
 - Install git: `apt install git`
-- Clone repo: `git clone git@github.com:willplayforfun/HomeServer1Config.git /opt/docker`
-- Run env-setup script: `/opt/docker/env-setup.sh`
+- Clone repo: `git clone https://github.com/willplayforfun/HomeServer1Config.git /opt/docker`
+- Run env-setup script: `bash /opt/docker/env-setup.sh`
     - enter your DDNS hostname; not including the `.ddns.net` part
     - enter your DDNS Key username and password
 
 ## Install OMV-Extras
 
 Still with a keyboard connected or via SSH:
-- Run `/opt/docker/install-omv-extras.sh`
+- Run `bash /opt/docker/install-omv-extras.sh`
 
 Now refresh the OMV web UI. New options will appear under System → Plugins. 
 
