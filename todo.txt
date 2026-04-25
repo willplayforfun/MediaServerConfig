@@ -1,0 +1,9 @@
+
+To be done:
+- Documenting setup: Installing OMV, adding ssh keys, pulling the github repo, installing plugins, setting up drives, Nginx setup (internal, external, LetsEncrypt)
+- ops scripts: install OMV-Extras and configure plugins, reset audiobookshelf password, fetch PIN for jellyfin password reset
+- auto-deployment on github push
+- local DNS
+- document my physical build
+
+- automatic certificate renewal via DNS challenge and personal domain instead of ddns

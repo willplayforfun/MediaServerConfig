@@ -86,6 +86,7 @@ services:
       - ./helpsite:/usr/share/nginx/html:ro
       - ./nginx-configs/helpsite.conf:/etc/nginx/conf.d/default.conf:ro
 
+  # ── No-IP (Dynamic DNS Update Client) ──
   noip-duc:
     image: noipcom/noip-duc:latest
     container_name: noip-duc
