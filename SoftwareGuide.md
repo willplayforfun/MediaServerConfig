@@ -69,7 +69,7 @@ mergerfs combines your data drives into a single pool. SnapRAID provides parity 
 > - 1 drive = SnapRAID parity (enables single-drive failure recovery)
 > **Note:** The parity drive must be at least as large as your largest data drive.
 
-- System → Plugins – install `openmediavault-snapraid` and `openmediavault-mergerfs`.
+- System → Plugins – install `openmediavault-snapraid`, `openmediavault-mergerfs`, and `openmediavault-sharerootfs`.
 - Apply changes when prompted.
 
 ## Prepare Drives in OMV
@@ -126,6 +126,8 @@ Services → SMB/CIFS → Shares. Add the folders to share. Standard options are
 
 Create a User Group `sftp-access`. Give Read/Write permission to all relevant media folders. 
 
+System → Plugins → install `openmediavault-sftp`
+
 Services → Sftp → Settings:
 - Enable: true
 - Port: 222 (22 is used for SSH)
@@ -151,6 +153,14 @@ With the permissions set up on SFTP above, you will need a non-root user to star
 Follow the user creation steps in the [Operations Guide](OperationsGuide.md).
 
 # Network Setup
+
+## Install Fail2ban
+System → Plugins → install `openmediavault-fail2ban`. This will block bots that try to brute-force attack your server.
+
+Services → Fail2ban → Settings 
+- Enable: true
+- Ignore IP: `127.0.0.1 192.168.0.0/16`
+- I set my times to `604800`, added my email, and set `action_mwl`, but these are not essential.
 
 ## Forward Ports
 On your router, forward these ports to your server:
