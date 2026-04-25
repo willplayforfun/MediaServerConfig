@@ -64,9 +64,7 @@ services:
       - STASH_CACHE=/cache/
       - STASH_PORT=9999
     volumes:
-      - /srv/dev-disk-by-uuid-320822070821CB25/pmedia:/data/media1  # ← add this
-      - /srv/dev-disk-by-uuid-BC96547B965437DA/p:/data/media2  # ← add this
-      - /srv/dev-disk-by-uuid-BC96547B965437DA/OtherFiles:/data/media3  # ← add this
+      - /srv/mergerfs/media/extra/media:/data/media
       - /etc/localtime:/etc/localtime:ro
       - ./stash/config:/root/.stash
       - /srv/mergerfs/pool/Stash:/data
