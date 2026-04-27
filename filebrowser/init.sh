@@ -12,4 +12,4 @@ if [ ! -s "$DB" ]; then
         --perm.admin=true
 fi
 
-exec filebrowser
+exec filebrowser --config /config/settings.json
