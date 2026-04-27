@@ -172,13 +172,14 @@ services:
   filebrowser:
     image: filebrowser/filebrowser:latest
     container_name: filebrowser
+    user: root
     restart: unless-stopped
     ports:
       - "8085:80"
     volumes:
       - ${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}:/srv
       - ./filebrowser/data:/database
-      - ./filebrowser/settings.json:/.filebrowser.json:ro
+      - ./filebrowser/settings.json:/config/settings.json:ro
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:
