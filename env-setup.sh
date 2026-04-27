@@ -1,6 +1,6 @@
 #!/bin/bash
 # env-setup.sh
-# Creates the .env file and renders some config files.
+# Creates the .env file consumed by docker-compose.
 #
 # Usage:
 #   ./env-setup.sh
@@ -138,8 +138,7 @@ NOIP_USERNAME=${NOIP_USERNAME}
 NOIP_PASSWORD=${NOIP_PASSWORD}
 NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
 
-# Server LAN IP 
-# Re-run env-setup.sh to change this (so the dnsmasq snippet is updated).
+# Server LAN IP
 LOCAL_IP=${LOCAL_IP}
 
 # Upstream DNS servers 
@@ -150,9 +149,6 @@ EOF
 
 chmod 600 "${ENV_FILE}"
 echo "Wrote ${ENV_FILE} (mode 600)."
-
-# --- Render dnsmasq config --------------------------------------------------
-"${SCRIPT_DIR}/render-dnsmasq-config.sh"
 
 echo
 echo "Public URL will be:   https://${NOIP_NAME}.ddns.net"

@@ -2,10 +2,11 @@ Read through these instructions line by line. Each is important.
 
 # Prerequisites
 - No-IP DDNS
+    - Create an account, claim a domain.
     - Generate a DDNS Key. Write down the username and password for later.
 - Router admin access for port forwarding
 - Flash drive (2 GB should be enough)
-- Server hardware with an SSD for the OS and at least 1 drive for your data.
+- [Server hardware](HardwareGuide.md) with an SSD for the OS and at least 1 drive for your data.
     - I recommend starting with just the SSD connected to the motherboard, to avoid confusion.
 - Keyboard and monitor hooked up to server
 
