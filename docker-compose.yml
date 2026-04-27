@@ -174,12 +174,16 @@ services:
     container_name: filebrowser
     user: root
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/init.sh"]
     ports:
       - "8085:80"
+    environment:
+      - INITIAL_FILEBROWSER_PASSWORD=${INITIAL_FILEBROWSER_PASSWORD}
     volumes:
-      - ${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}:/srv
+      - ${FILEBROWSER_ROOT:-/srv/mergerfs/media}:/srv
       - ./filebrowser/data:/database
       - ./filebrowser/settings.json:/config/settings.json:ro
+      - ./filebrowser/init.sh:/init.sh:ro
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:

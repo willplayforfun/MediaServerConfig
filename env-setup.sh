@@ -145,6 +145,11 @@ LOCAL_IP=${LOCAL_IP}
 # Safe to edit; restart the dnsmasq container after changing.
 DNS1=${DNS1}
 DNS2=${DNS2}
+
+# The root directory for the filebrowser web UI
+FILEBROWSER_ROOT=/srv/mergerfs/media/share
+# Initial password for Filebrowser admin
+INITIAL_FILEBROWSER_PASSWORD=hellofilebrowser
 EOF
 
 chmod 600 "${ENV_FILE}"
