@@ -14,13 +14,31 @@ You can also do the keygen for them - since it is just for shared SFTP access, t
 
 If they lose their key file, you can simply generate a new keypair and replace the public key in the user config with a new one.
 
+## Creating a new Jellyfin user
+While logged in as Jellyfin admin:
+- Dashboard → Users → Add User
+- Optionally restrict library access per user
+- Optionally set per-user transcoding limits, download permissions, parental controls
+
+### Resetting Passwords
+TODO: script to fetch PIN for jellyfin password reset
+
+## Creating a new Audiobookshelf user
+While logged in as Audiobookshelf admin:
+- Settings → Users → Add User
+- Optionally restrict library access per user
+- Optionally can enable upload permissions per user
+
+### Resetting Passwords
+TODO: script to reset audiobookshelf password
+
 # Uploading Media
 
 The best way is to connect via SFTP on port 222. This allows mass transfer of files to the proper directories at high speed. Use an SFTP client like WinSCP. Make sure to add your private key under the authentication settings.
 
 ## Managing Metadata
 
-I highly recommend using [tinyMediaManager](URL TODO) (or a similar program) to create `.nfo` files, download thumbnails, and rename your video files to use a consistent naming scheme. This ensures that the information displayed in Jellyfin is correct, even for obscure movies and TV. Without this step, Jellyfin will try to infer the metadata based on the filename, but this can be messy.
+I highly recommend using [tinyMediaManager](https://www.tinymediamanager.org/) (or a similar program) to create `.nfo` files, download thumbnails, and rename your video files to use a consistent naming scheme. This ensures that the information displayed in Jellyfin is correct, even for obscure movies and TV. Without this step, Jellyfin will try to infer the metadata based on the filename, but this can be messy.
 
 # Ports
 
