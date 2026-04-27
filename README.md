@@ -66,8 +66,6 @@ Each service is accessed on a different port. That means the Jellyfin UI is acce
 
 Nginx routes different URL paths to different locations - in our case, to the different Docker containers running our services.
 
-While Nginx normally just uses config files, [Nginx Proxy Manager](https://nginxproxymanager.com/) is a UI that allows us to configure aspects from another computer without navigating a terminal. This is the same principle as OMV's "workbench" UI.
-
 ## Accessing from Anywhere
 At this point, the server is completely usable, as long as you are connected to your own network (Wifi or Ethernet). However, there are two problems to overcome if you want to use it from anywhere on the internet:
 1. Your home router doesn't know to send HTTP/HTTPS packets to the server.

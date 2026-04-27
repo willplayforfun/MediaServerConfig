@@ -23,13 +23,8 @@
 - 3670 - File browser plugin
 
 ## Nginx
-- 80 - HTTP, Internal network connections, Let's Encrypt
-- 443 - HTTPS, External internet connections
-### Internal Network Only
-- 81 - Nginx Proxy Manager web ui
-
-## Help Pages
-- 8080 - server (nginx)
+- 80 - HTTP, Let's Encrypt ACME challenges + redirect to HTTPS
+- 443 - HTTPS, all web traffic (proxy + help site)
 
 ## Jellyfin
 - 8096 - webui

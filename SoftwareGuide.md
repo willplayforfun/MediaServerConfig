@@ -167,39 +167,6 @@ On your router, forward these ports to your server:
 - External port 80 → Internal port 80 (TCP) – required for Let's Encrypt
 - External port 443 → Internal port 443 (TCP) – HTTPS traffic
 
-## Configure Nginx
-
-Navigate to `http://<server-ip>:81` in your browser
-Default credentials: 
-- Username: `admin@example.com` 
-- Password: `changeme`
-Change these immediately. I recommend using the same password as you used for the OMV web UI. Use a real email (it's used for generating TLS certificates) 
-
-Go to Hosts → Proxy Hosts → **Add Proxy Host**
-
-Route internet traffic from DDNS, Force SSL:
-```
-Domain Names: <your-domain>
-Scheme: http
-Forward Hostname: localhost
-Forward Port: 80
-Block Common Exploits: true
-Websockets Support: true
-Force SSL: true
-HTTP/2 Support: true 
-```
-For the SSL Certificate, just select "Request a new certificate".
-
-If you don't plan on using dnsmasq to make your server accessible within your network via the domain names, then add this block (Non-SSL, local traffic via server IP):
-```
-Domain Names: <server-ip>
-Scheme: http
-Forward Hostname: localhost
-Forward Port: 80
-Block Common Exploits: true
-Websockets Support: true
-```
-
 ## Configure dnsmasq
 Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Server" in your router's config to the internal IP of your server. 
 

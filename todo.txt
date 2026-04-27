@@ -1,8 +1,9 @@
 
 To be done:
 - Documenting setup: adding ssh keys
-- ops scripts: install OMV-Extras, reset audiobookshelf password, fetch PIN for jellyfin password reset
-- local DNS
+- ops scripts: reset audiobookshelf password, fetch PIN for jellyfin password reset
 - auto-deployment on github push
 - document my physical build
-- automatic certificate renewal via DNS challenge and personal domain instead of ddns
+
+-pihole
+-filebrowser
