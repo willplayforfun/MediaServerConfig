@@ -120,7 +120,22 @@ services:
       - ./audiobookshelf/metadata:/metadata
       - /srv/mergerfs/media/audiobooks:/audiobooks
       - /srv/mergerfs/media/podcasts:/podcasts
-
+  
+  # ── Navidrome ─────────────────────────────────────────────────────────
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    restart: unless-stopped
+    ports:
+        - "4533:4533"
+    volumes:
+        - ./navidrome/data:/data
+        - /srv/mergerfs/media/music:/music:ro
+    environment:
+        ND_SCANSCHEDULE: 1h
+        ND_LOGLEVEL: info
+        ND_BASEURL: /music
+  
   # ── Stash ──────────────────────────────────────────────────────────────────
   stash:
     image: stashapp/stash:latest
@@ -143,11 +158,25 @@ services:
       - /srv/mergerfs/media/extra/media:/data/media
       - /etc/localtime:/etc/localtime:ro
       - ./stash/config:/root/.stash
-      - /srv/mergerfs/pool/Stash:/data
       - ./stash/metadata:/metadata
       - ./stash/cache:/cache
       - ./stash/blobs:/blobs
       - ./stash/generated:/generated
+
+  # ── Filebrowser ────────────────────────────────────────────────────────────
+  # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
+  # in .env — point it at whatever SMB share OMV exposes (e.g. /srv/mergerfs/media/share).
+  # Database and user accounts are persisted in ./filebrowser/data/ at runtime.
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    ports:
+      - "8085:80"
+    volumes:
+      - ${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}:/srv
+      - ./filebrowser/data:/database
+      - ./filebrowser/settings.json:/.filebrowser.json:ro
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:

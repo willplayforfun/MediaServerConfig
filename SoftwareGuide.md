@@ -4,6 +4,7 @@ Read through these instructions line by line. Each is important.
 - No-IP DDNS
     - Create an account, claim a domain.
     - Generate a DDNS Key. Write down the username and password for later.
+        - TODO: how?
 - Router admin access for port forwarding
 - Flash drive (2 GB should be enough)
 - [Server hardware](HardwareGuide.md) with an SSD for the OS and at least 1 drive for your data.
@@ -107,7 +108,7 @@ Storage → Shared Folders. For each folder we create, set the filesystem to `me
 | media-audiobooks   | audiobooks/   |
 | media-podcasts     | podcasts/     |
 
-You can also create additional folders for network file sharing using the same scheme.
+You can also create additional folders for network file sharing using the same scheme. By default, a filebrowser UI exists that points at `share/`
 
 ## Install Docker Plugin
 In OMV web UI: 
