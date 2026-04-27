@@ -177,33 +177,34 @@ Change these immediately. I recommend using the same password as you used for th
 
 Go to Hosts → Proxy Hosts → **Add Proxy Host**
 
-Non-SSL, local traffic via server IP:
-```
-Domain Names: <server-ip>
-Scheme: http
-Forward Hostname: helpsite
-Forward Port: 80
-Block Common Exploits: true
-Websockets Support: true
-```
-
-Force SSL for internet traffic via DDNS:
+Route internet traffic from DDNS, Force SSL:
 ```
 Domain Names: <your-domain>
-Scheme: http, Forward Hostname: helpsite, Forward Port: 80
+Scheme: http
+Forward Hostname: localhost
+Forward Port: 80
 Block Common Exploits: true
 Websockets Support: true
 Force SSL: true
 HTTP/2 Support: true 
 ```
-For the SSL Certificate on the second proxy host, just select "Request a new certificate".
+For the SSL Certificate, just select "Request a new certificate".
 
+If you don't plan on using dnsmasq to make your server accessible within your network via the domain names, then add this block (Non-SSL, local traffic via server IP):
+```
+Domain Names: <server-ip>
+Scheme: http
+Forward Hostname: localhost
+Forward Port: 80
+Block Common Exploits: true
+Websockets Support: true
+```
 
-# Jellyfin Setup
-TODO
+## Configure dnsmasq
+Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Server" in your router's config to the internal IP of your server. 
 
-# Navidrome Setup
-TODO
+NOTE: It is important that your router never re-assign the IP of the server when using dnsmasq. Make sure to assign the server a static IP.
 
-# Audiobookshelf Setup
-TODO
+# Service Setup
+
+See the individual guides for [Jellyfin](JellyfinSetupGuide.md), [Navidrome](NavidromeSetupGuide.md), and [Audiobookshelf](AudiobookshelfSetupGuide.md).
