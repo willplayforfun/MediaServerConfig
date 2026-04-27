@@ -14,7 +14,7 @@ services:
     environment:
       - DOMAIN=${NOIP_NAME}.ddns.net
       - EMAIL=${CERTBOT_EMAIL}
-       - STAGING=${STAGING:-}
+      - STAGING=${STAGING:-}
     entrypoint: ["/bin/sh", "/cert-init.sh"]
 
   # ── Nginx ──────────────────────────────────────────────────────────────────
