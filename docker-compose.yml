@@ -7,6 +7,7 @@ services:
       context: ./template_rendering
       dockerfile: Dockerfile
     image: homeserver-renderer:local
+    pull_policy: never
     volumes:
       - ./helpsite:/in:ro
       - ./helpsite-rendered:/out
@@ -24,6 +25,7 @@ services:
       context: ./template_rendering
       dockerfile: Dockerfile
     image: homeserver-renderer:local
+    pull_policy: never
     volumes:
       - ./dnsmasq:/in:ro
       - ./dnsmasq-rendered:/out
