@@ -32,6 +32,12 @@ While logged in as Audiobookshelf admin:
 ### Resetting Passwords
 TODO: script to reset audiobookshelf password
 
+## Creating a new Navidrome user
+While logged in with an admin account:
+- Settings → Users → Add User
+- Users can be admin or regular
+
+
 # Uploading Media
 
 The best way is to connect via SFTP on port 222. This allows mass transfer of files to the proper directories at high speed. Use an SFTP client like WinSCP. Make sure to add your private key under the authentication settings.
