@@ -71,6 +71,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx-configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx-configs/locations.conf:/etc/nginx/conf.d/locations.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./helpsite-rendered:/usr/share/nginx/html:ro
