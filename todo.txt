@@ -1,0 +1,16 @@
+
+To be done:
+- Expand helpsite: 
+    - how to set up your own (link to github)
+    - how to add files via SFTP
+    - how to run ssh key gen
+    - how to use tinyMediaManager to format and generate NFO
+    - desirable donations: HDDs, SSDs.
+    - subscription-free alternatives hub: 
+        - adobe->affinity
+        - how to get started webhosting
+        - self-hostable service alternatives
+
+- ops scripts: reset audiobookshelf password, fetch PIN for jellyfin password reset
+- auto-deployment on github push
+- document my physical build

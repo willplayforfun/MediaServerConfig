@@ -1,20 +1,99 @@
 services:
-
-  # ── Nginx Proxy Manager ──
-  nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx-proxy-manager
-    restart: unless-stopped
-    ports:
-      - "80:80"       # HTTP (Let's Encrypt challenges)
-      - "443:443"     # HTTPS
-      - "81:81"       # Admin panel (local access only)
+  # ── Helpsite Render ────────────────────────────────────────────────────────
+  # One-shot. Walks ./helpsite, renders any *.tmpl files into ./helpsite-rendered
+  # via envsubst, copies non-template files verbatim. nginx serves the output.
+  helpsite-render:
+    build:
+      context: ./template_rendering
+      dockerfile: Dockerfile
+    image: homeserver-renderer:local
+    pull_policy: never
     volumes:
-      - ./nginx-proxy-manager/data:/data
-      - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
-      - ./nginx-configs/server_proxy.conf:/data/nginx/custom/server_proxy.conf
+      - ./helpsite:/in:ro
+      - ./helpsite-rendered:/out
+    environment:
+      - IN=/in
+      - OUT=/out
+      # The literal string passed to envsubst as its allowlist. The $$ escapes
+      # are needed so docker-compose doesn't try to expand these itself.
+      - VARS=$${NOIP_NAME}
+      - NOIP_NAME=${NOIP_NAME}
 
-  # ── Jellyfin ──
+  # ── dnsmasq Render ─────────────────────────────────────────────────────────
+  dnsmasq-render:
+    build:
+      context: ./template_rendering
+      dockerfile: Dockerfile
+    image: homeserver-renderer:local
+    pull_policy: never
+    volumes:
+      - ./dnsmasq:/in:ro
+      - ./dnsmasq-rendered:/out
+    environment:
+      - IN=/in
+      - OUT=/out
+      - VARS=$${NOIP_NAME} $${LOCAL_IP}
+      - NOIP_NAME=${NOIP_NAME}
+      - LOCAL_IP=${LOCAL_IP}
+
+  # ── Cert Init ──────────────────────────────────────────────────────────────
+  # One-shot service. Runs before nginx starts.
+  # Fast exit if certificates already exist; otherwise issues them via
+  # certbot standalone (binds port 80 directly while nginx is not yet running).
+  # Set STAGING=1 in .env to test with the Let's Encrypt staging CA first.
+  cert-init:
+    image: certbot/certbot
+    ports:
+      - "80:80"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./scripts/cert-init.sh:/cert-init.sh:ro
+    environment:
+      - DOMAIN=${NOIP_NAME}.ddns.net
+      - EMAIL=${CERTBOT_EMAIL}
+      - STAGING=${STAGING:-}
+    entrypoint: ["/bin/sh", "/cert-init.sh"]
+
+  # ── Nginx ──────────────────────────────────────────────────────────────────
+  # Unified reverse proxy, TLS termination, and help site.
+  # Waits for cert-init and helpsite-render to finish before starting.
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+      helpsite-render:
+        condition: service_completed_successfully
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx-configs/locations.conf:/etc/nginx/locations.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./helpsite-rendered:/usr/share/nginx/html:ro
+
+  # ── Certbot Renewal ────────────────────────────────────────────────────────
+  # Long-running loop that checks for renewal every 12 hours.
+  # Uses webroot mode (nginx serves the ACME challenge path).
+  # Reloads nginx after a successful renewal via docker exec.
+  # Requires the Docker socket so it can reach the nginx container.
+  certbot-renew:
+    image: certbot/certbot
+    restart: unless-stopped
+    depends_on:
+      - nginx
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./scripts/certbot-renew.sh:/certbot-renew.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "/certbot-renew.sh"]
+
+  # ── Jellyfin ───────────────────────────────────────────────────────────────
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
@@ -29,9 +108,9 @@ services:
     devices:
       - /dev/dri:/dev/dri    # Intel Quick Sync
     environment:
-      - JELLYFIN_PublishedServerUrl=https://mlev.ddns.net/jellyfin
+      - JELLYFIN_PublishedServerUrl=https://${NOIP_NAME}.ddns.net/jellyfin
 
-  # ── Audiobookshelf ──
+  # ── Audiobookshelf ─────────────────────────────────────────────────────────
   # Hardcoded /audiobookshelf base path. Works out of the box.
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:latest
@@ -44,8 +123,23 @@ services:
       - ./audiobookshelf/metadata:/metadata
       - /srv/mergerfs/media/audiobooks:/audiobooks
       - /srv/mergerfs/media/podcasts:/podcasts
-
-  # ── Stash ──
+  
+  # ── Navidrome ─────────────────────────────────────────────────────────
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    restart: unless-stopped
+    ports:
+        - "4533:4533"
+    volumes:
+        - ./navidrome/data:/data
+        - /srv/mergerfs/media/music:/music:ro
+    environment:
+        ND_SCANSCHEDULE: 1h
+        ND_LOGLEVEL: info
+        ND_BASEURL: /music
+  
+  # ── Stash ──────────────────────────────────────────────────────────────────
   stash:
     image: stashapp/stash:latest
     container_name: stash
@@ -64,28 +158,35 @@ services:
       - STASH_CACHE=/cache/
       - STASH_PORT=9999
     volumes:
-      - /srv/dev-disk-by-uuid-320822070821CB25/pmedia:/data/media1  # ← add this
-      - /srv/dev-disk-by-uuid-BC96547B965437DA/p:/data/media2  # ← add this
-      - /srv/dev-disk-by-uuid-BC96547B965437DA/OtherFiles:/data/media3  # ← add this
+      - /srv/mergerfs/media/extra/media:/data/media
       - /etc/localtime:/etc/localtime:ro
       - ./stash/config:/root/.stash
-      - /srv/mergerfs/pool/Stash:/data
       - ./stash/metadata:/metadata
       - ./stash/cache:/cache
       - ./stash/blobs:/blobs
       - ./stash/generated:/generated
 
-  # ── Help Page (static web server) ──
-  helpsite:
-    image: nginx:alpine
-    container_name: helpsite
+  # ── Filebrowser ────────────────────────────────────────────────────────────
+  # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
+  # in .env — point it at whatever SMB share OMV exposes (e.g. /srv/mergerfs/media/share).
+  # Database and user accounts are persisted in ./filebrowser/data/ at runtime.
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    user: root
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/init.sh"]
     ports:
-      - "8080:80"
+      - "8085:80"
+    environment:
+      - INITIAL_FILEBROWSER_PASSWORD=${INITIAL_FILEBROWSER_PASSWORD}
     volumes:
-      - ./helpsite:/usr/share/nginx/html:ro
-      - ./nginx-configs/helpsite.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${FILEBROWSER_ROOT:-/srv/mergerfs/media}:/srv
+      - ./filebrowser/data:/database
+      - ./filebrowser/settings.json:/config/settings.json:ro
+      - ./filebrowser/init.sh:/init.sh:ro
 
+  # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:
     image: noipcom/noip-duc:latest
     container_name: noip-duc
@@ -95,3 +196,22 @@ services:
       - NOIP_PASSWORD=${NOIP_PASSWORD}
       - NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
     network_mode: host   # needed so it can detect your real public IP
+
+  # ── dnsmasq (local DNS) ────────────────────────────────────────────────────
+  # The address mapping at ./dnsmasq/conf.d/local.conf is generated by
+  # dnsmasq-render from ./dnsmasq/templates/local.conf.tmpl on each `up`.
+  dnsmasq:
+    image: dockurr/dnsmasq:latest
+    container_name: dnsmasq
+    restart: unless-stopped
+    depends_on:
+      dnsmasq-render:
+        condition: service_completed_successfully
+    network_mode: host   # binds port 53 directly on the host LAN interface
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - DNS1=${DNS1}
+      - DNS2=${DNS2}
+    volumes:
+      - ./dnsmasq-rendered:/etc/dnsmasq.d:ro
