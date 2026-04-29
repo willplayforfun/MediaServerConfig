@@ -1,0 +1,19 @@
+# Ensure shell scripts always use LF line endings, regardless of platform.
+# Windows CRLF line endings break sh/bash inside Linux containers.
+*.sh    text eol=lf
+
+# Ensure other text files normalize to LF as well.
+*       text=auto eol=lf
+
+# Binary files — no line ending conversion.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.otf   binary
+*.pdf   binary
