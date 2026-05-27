@@ -10,13 +10,11 @@ Settings → Libraries → Add Library:
 - Podcasts library → folder: /podcasts
 
 ## Getting Your Audible Books
-OpenAudible (https://openaudible.org/) – desktop app to download and convert Audible books to M4B/MP3.
-audible-cli (https://github.com/mkb79/audible-cli) – command-line bulk download tool.
+Just use Libation (https://getlibation.com/) – desktop app to download and convert Audible books to M4B/MP3.
 Place converted files on the server.
 
 ### Audiobook Folder Structure
 /srv/mergerfs/media/audiobooks/
-├── Author Name/
 │   ├── Book Title/
 │   │   ├── BookTitle.m4b
 │   │   └── cover.jpg

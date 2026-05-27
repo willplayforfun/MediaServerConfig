@@ -1,6 +1,6 @@
 # This Repository
 
-I am endeavoring to make it dead simple to self-host a media server in my home, and to allow others to do the same. The server can be made accessible to the wider internet by forwarding two ports from your public IP to your server, and by signing up for a free Dynamic DNS address.
+I am endeavoring to make it dead simple to self-host a media server in my home, and to allow others to do the same.
 
 Services that can be provided on this server include:
 - [Jellyfin](https://jellyfin.org/) - video streaming. Replaces Netflix, Hulu, etc. Similar to Plex, but truly free.
@@ -10,7 +10,9 @@ Services that can be provided on this server include:
 
 Since it uses Nginx to proxy traffic to each service, it can also host static websites with a little additional effort. It can also provide networked storage to other computers on your home network.
 
-The setup uses Docker to contain each service. It is built on [OpenMediaVault](https://www.openmediavault.org/), a Debian Linux distribution designed to host a networked storage server. It uses `mergerfs` to pool together multiple hard drives into a single volume, and then `SnapRAID` to provide security against data loss due to disk failure. [No-IP](https://www.noip.com/) provides DDNS services, while dnsmasq allows you to use that domain within your home network.
+The setup uses Docker to contain each service. It is built on [OpenMediaVault](https://www.openmediavault.org/), a Debian Linux distribution designed to host a networked storage server. It uses `mergerfs` to pool together multiple hard drives into a single volume, and then `SnapRAID` to provide security against data loss due to disk failure. [No-IP](https://www.noip.com/) provides DDNS services, while `dnsmasq` allows you to use that domain within your home network.
+
+ The server can be made accessible to the wider internet by forwarding two ports from your public IP to your server, and by signing up for a free Dynamic DNS address.
 
 # Getting Started
 
@@ -27,8 +29,8 @@ For details on operating a server after setup, see [this ops guide](OperationsGu
 By default, OMV serves the workbench UI on port 80, but doesn't do much else.
 
 There are three separate issues here:
-1. How to configure OMV to be an effective media *storage* device, including optionally exposing it to SFTP, SMB, and NFS protocols.
-2. How to allow nicer access to files, such as streaming movies and music.
+1. How to configure OMV to be an effective media *storage* device, including optionally exposing it to SFTP, SMB, and NFS protocols (network file share).
+2. How to allow convenient access to media, such as streaming movies and music.
 3. How to access the server outside your home.
 
 ## OMV as Network Media Storage
