@@ -1,4 +1,15 @@
 
+# Rendered into ./nginx-configs-rendered/locations.conf by the nginx-render
+# container (envsubst). Included inside the port-80 and port-443 server blocks.
+# Only ${PLEX_HTTPS_PORT} is substituted here; all other $variables are nginx
+# runtime variables. Edit this template, not the rendered output.
+
+# Resolve upstreams at request time via Docker's embedded DNS. Putting the
+# upstream host in a variable forces per-request resolution, so nginx starts
+# regardless of which optional services are enabled; a disabled or down service
+# returns 502 rather than preventing nginx from starting.
+resolver 127.0.0.11 valid=30s ipv6=off;
+
 # ── Help site ─────────────────────────────────────────────────────────────────
 location = / {
     return 301 /help/;
@@ -16,7 +27,8 @@ location /jellyfin {
     return 301 $scheme://$host/jellyfin/;
 }
 location /jellyfin/ {
-    proxy_pass http://jellyfin:8096;
+    set $jellyfin_upstream jellyfin;
+    proxy_pass http://$jellyfin_upstream:8096;
 
     proxy_pass_header Authorization;
     proxy_set_header Host              $host;
@@ -35,14 +47,23 @@ location /jellyfin/ {
     proxy_buffering off;
 }
 
+# ── Plex ────────────────────────────────────────────────────────────────────────
+# Plex can't be proxied under a subpath, so /plex is just a convenience launcher
+# that bounces to its dedicated HTTPS port (see the Plex server block in nginx.conf).
+location = /plex {
+    return 302 https://$host:${PLEX_HTTPS_PORT}/web;
+}
+
 # ── Audiobookshelf ────────────────────────────────────────────────────────────
 location /audiobookshelf {
-    proxy_pass http://audiobookshelf:80;
+    set $audiobookshelf_upstream audiobookshelf;
+    proxy_pass http://$audiobookshelf_upstream:80;
 
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
     proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
     proxy_set_header Upgrade           $http_upgrade;
     proxy_set_header Connection        "upgrade";
 }
@@ -52,7 +73,8 @@ location /music {
     return 301 $scheme://$host/music/;
 }
 location /music/ {
-    proxy_pass http://navidrome:4533;
+    set $navidrome_upstream navidrome;
+    proxy_pass http://$navidrome_upstream:4533;
 
     proxy_pass_header Authorization;
     proxy_set_header Host              $host;
@@ -70,7 +92,8 @@ location /files {
     return 301 $scheme://$host/files/;
 }
 location /files/ {
-    proxy_pass http://filebrowser:80;
+    set $filebrowser_upstream filebrowser;
+    proxy_pass http://$filebrowser_upstream:80;
 
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
@@ -83,7 +106,11 @@ location /files/ {
 
 # ── Stash ─────────────────────────────────────────────────────────────────────
 location /stash/ {
-    proxy_pass http://stash:9999/;
+    set $stash_upstream stash;
+    # Strip the /stash/ prefix before proxying (equivalent to the trailing-slash
+    # proxy_pass form, which can't be used together with a variable upstream).
+    rewrite ^/stash/(.*)$ /$1 break;
+    proxy_pass http://$stash_upstream:9999;
 
     proxy_http_version 1.1;
     proxy_set_header Upgrade             $http_upgrade;

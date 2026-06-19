@@ -16,8 +16,30 @@ services:
       - OUT=/out
       # The literal string passed to envsubst as its allowlist. The $$ escapes
       # are needed so docker-compose doesn't try to expand these itself.
-      - VARS=$${NOIP_NAME}
+      - VARS=$${NOIP_NAME} $${PLEX_HTTPS_PORT}
       - NOIP_NAME=${NOIP_NAME}
+      - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
+
+  # ── Nginx Config Render ──────────────────────────────────────────────────────
+  # One-shot. Renders ./nginx-configs/*.tmpl into ./nginx-configs-rendered via
+  # envsubst (so the Plex HTTPS port is injected), then nginx mounts the output.
+  # nginx runtime $variables ($host, $scheme, ...) are NOT in the allowlist, so
+  # envsubst leaves them untouched.
+  nginx-render:
+    build:
+      context: ./template_rendering
+      dockerfile: Dockerfile
+    image: homeserver-renderer:local
+    pull_policy: never
+    volumes:
+      - ./nginx-configs:/in:ro
+      - ./nginx-configs-rendered:/out
+    environment:
+      - IN=/in
+      - OUT=/out
+      - VARS=$${NOIP_NAME} $${PLEX_HTTPS_PORT}
+      - NOIP_NAME=${NOIP_NAME}
+      - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 
   # ── dnsmasq Render ─────────────────────────────────────────────────────────
   dnsmasq-render:
@@ -61,17 +83,25 @@ services:
     image: nginx:alpine
     container_name: nginx
     restart: unless-stopped
+    # Only depends on the file prerequisites: the TLS cert must exist before
+    # nginx can bind :443/:${PLEX_HTTPS_PORT}, and the config must be rendered
+    # first. nginx does NOT depend on any media service — upstreams are resolved
+    # at request time (see resolver in the rendered configs), so a disabled or
+    # down backend returns 502 instead of blocking nginx startup.
     depends_on:
       cert-init:
         condition: service_completed_successfully
       helpsite-render:
         condition: service_completed_successfully
+      nginx-render:
+        condition: service_completed_successfully
     ports:
       - "80:80"
       - "443:443"
+      - "${PLEX_HTTPS_PORT}:${PLEX_HTTPS_PORT}"   # Plex HTTPS (proxied at root)
     volumes:
-      - ./nginx-configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx-configs/locations.conf:/etc/nginx/locations.conf:ro
+      - ./nginx-configs-rendered/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx-configs-rendered/locations.conf:/etc/nginx/locations.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./helpsite-rendered:/usr/share/nginx/html:ro
@@ -97,6 +127,7 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
+    profiles: ["jellyfin"]
     restart: unless-stopped
     ports:
       - "8096:8096"
@@ -110,11 +141,33 @@ services:
     environment:
       - JELLYFIN_PublishedServerUrl=https://${NOIP_NAME}.ddns.net/jellyfin
 
+  # ── Plex ───────────────────────────────────────────────────────────────────
+  # Nginx terminates TLS on ${PLEX_HTTPS_PORT} and proxies Plex at the root
+  # (Plex can't live under a subpath like /jellyfin).
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    profiles: ["plex"]
+    restart: unless-stopped
+    volumes:
+      - ./plex/config:/config
+      - ./plex/transcode:/transcode
+      - /srv/mergerfs/media/movies:/media/movies:ro
+      - /srv/mergerfs/media/tv:/media/tv:ro
+    devices:
+      - /dev/dri:/dev/dri    # Intel Quick Sync (shared with Jellyfin)
+    environment:
+      # One-time claim token from https://www.plex.tv/claim (set by env-setup)
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
+      - ADVERTISE_IP=https://${NOIP_NAME}.ddns.net:${PLEX_HTTPS_PORT}/
+      - TZ=${TZ:-Etc/UTC}
+
   # ── Audiobookshelf ─────────────────────────────────────────────────────────
   # Hardcoded /audiobookshelf base path. Works out of the box.
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:latest
     container_name: audiobookshelf
+    profiles: ["audiobookshelf"]
     restart: unless-stopped
     ports:
       - "13378:80"
@@ -128,6 +181,7 @@ services:
   navidrome:
     image: deluan/navidrome:latest
     container_name: navidrome
+    profiles: ["navidrome"]
     restart: unless-stopped
     ports:
         - "4533:4533"
@@ -143,6 +197,7 @@ services:
   stash:
     image: stashapp/stash:latest
     container_name: stash
+    profiles: ["stash"]
     restart: unless-stopped
     ports:
       - "9999:9999"
@@ -173,6 +228,7 @@ services:
   filebrowser:
     image: filebrowser/filebrowser:latest
     container_name: filebrowser
+    profiles: ["filebrowser"]
     user: root
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/init.sh"]
@@ -185,6 +241,23 @@ services:
       - ./filebrowser/data:/database
       - ./filebrowser/settings.json:/config/settings.json:ro
       - ./filebrowser/init.sh:/init.sh:ro
+
+  # ── Universal Media Server ───────────────────────────────────────────────
+  # DLNA/UPnP server. DLNA discovery uses SSDP multicast, 
+  # which does not cross Docker's bridge network, so this runs
+  # with host networking.
+  universalmediaserver:
+    image: universalmediaserver/ums:latest
+    container_name: universalmediaserver
+    profiles: ["universalmediaserver"]
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # Tells UMS to read/write UMS.conf and its database under /profile.
+      - UMS_PROFILE=/profile
+    volumes:
+      - ./universalmediaserver/config:/profile
+      - /srv/mergerfs/media/vr360:/media:ro
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:

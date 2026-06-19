@@ -1,0 +1,87 @@
+
+# Rendered into ./nginx-configs-rendered/nginx.conf by the nginx-render
+# container (envsubst). Only ${NOIP_NAME} and ${PLEX_HTTPS_PORT} are
+# substituted; every other $variable below is an nginx runtime variable and is
+# left untouched (envsubst is restricted to the VARS allowlist in
+# docker-compose.yml). Edit this template, not the rendered output.
+
+# ── LAN detection ─────────────────────────────────────────────────────────────
+# Adjust to match your actual home subnet if needed (RFC-1918 defaults here).
+geo $needs_https {
+    default         1;
+    10.0.0.0/8      0;
+    172.16.0.0/12   0;
+    192.168.0.0/16  0;
+}
+
+# ── HTTP ─────────────────────────────────────────────────────────────────────
+# LAN clients (see geo block above) are served directly over HTTP.
+# External clients are redirected to HTTPS.
+server {
+    listen 80;
+    server_name _;
+
+    # ACME challenge responses for Let's Encrypt (certbot webroot renewal)
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect non-LAN clients to HTTPS
+    if ($needs_https) {
+        return 301 https://$host$request_uri;
+    }
+
+    include /etc/nginx/locations.conf;
+}
+
+# ── HTTPS ─────────────────────────────────────────────────────────────────────
+server {
+    listen 443 ssl;
+    server_name _;
+
+    # Cert is always named 'homeserver' via --cert-name in cert-init.sh
+    ssl_certificate     /etc/letsencrypt/live/homeserver/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/homeserver/privkey.pem;
+
+    ssl_protocols             TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    include /etc/nginx/locations.conf;
+}
+
+# ── Plex (dedicated HTTPS port) ────────────────────────────────────────────────
+# Plex can't really be served under a subpath. Since we can't add a subdomain to a DDNS hostname, 
+# we give Plex its own TLS port and proxy it at the server root. 
+# The certificate is valid for the hostname regardless of port, so we reuse it here.
+server {
+    listen ${PLEX_HTTPS_PORT} ssl;
+    server_name _;
+
+    ssl_certificate     /etc/letsencrypt/live/homeserver/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/homeserver/privkey.pem;
+
+    ssl_protocols             TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Resolve the upstream at request time via Docker's embedded DNS, so nginx
+    # starts cleanly even when the (optional) plex container is disabled. A
+    # disabled/down backend then returns 502 instead of breaking startup.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    location / {
+        set $plex_upstream plex;
+        proxy_pass http://$plex_upstream:32400;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support (Plex uses it for live notifications)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_buffering off;
+    }
+}

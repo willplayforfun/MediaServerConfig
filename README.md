@@ -4,9 +4,13 @@ I am endeavoring to make it dead simple to self-host a media server in my home, 
 
 Services that can be provided on this server include:
 - [Jellyfin](https://jellyfin.org/) - video streaming. Replaces Netflix, Hulu, etc. Similar to Plex, but truly free.
+- [Plex](https://www.plex.tv/) - video streaming, as an alternative to Jellyfin. Can serve the same movie/TV libraries.
+- [Universal Media Server](https://www.universalmediaserver.com/) - a DLNA/UPnP server for devices that discover media over the LAN, such as streaming 360 video to a VR headset.
 - [Audiobookshelf](https://www.audiobookshelf.org/) - audiobook and podcast streaming and downloads. Replaces Audible.
 - [Navidrome](https://www.navidrome.org/) - music streaming and downloads. Replaces Spotify.
 - Help Pages - static HTML guides for your friends and family.
+
+Each service can be turned on or off independently.
 
 Since it uses Nginx to proxy traffic to each service, it can also host static websites with a little additional effort. It can also provide networked storage to other computers on your home network.
 

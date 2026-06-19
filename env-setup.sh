@@ -121,6 +121,55 @@ done
 DNS1="1.1.1.1"
 DNS2="8.8.8.8"
 
+# --- Service selection ------------------------------------------------------
+# Each media service can be toggled on or off. docker-compose reads
+# COMPOSE_PROFILES from .env and only starts services whose profile is listed.
+# Re-run this script (or edit COMPOSE_PROFILES in .env) to change the mix.
+echo
+echo "Select which services to enable (press Enter to accept the default):"
+
+PROFILES=()
+ask_service() {
+    # $1 = profile name, $2 = description, $3 = default (Y or N)
+    local name="$1" desc="$2" def="$3" prompt ans
+    if [ "$def" = "Y" ]; then prompt="[Y/n]"; else prompt="[y/N]"; fi
+    read -r -p "  Enable ${desc}? ${prompt} " ans
+    ans="${ans:-$def}"
+    case "$ans" in
+        [yY]|[yY][eE][sS]) PROFILES+=("$name") ;;
+    esac
+}
+
+ask_service jellyfin             "Jellyfin (video streaming)"                  Y
+ask_service plex                 "Plex (video streaming)"                      N
+ask_service universalmediaserver "Universal Media Server (DLNA, UPnP)"  N
+ask_service navidrome            "Navidrome (music streaming)"                 Y
+ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"      Y
+ask_service stash                "Stash (video streaming)"                                       N
+ask_service filebrowser          "Filebrowser (web file manager)"             Y
+
+if [ ${#PROFILES[@]} -eq 0 ]; then
+    COMPOSE_PROFILES=""
+    echo "  Warning: no services selected. Only infrastructure will start."
+else
+    COMPOSE_PROFILES="$(IFS=,; echo "${PROFILES[*]}")"
+fi
+
+# --- Plex configuration (only when enabled) ---------------------------------
+PLEX_CLAIM=""
+PLEX_HTTPS_PORT="8443"
+case ",${COMPOSE_PROFILES}," in
+    *,plex,*)
+        echo
+        echo "Plex is enabled."
+        echo "  Get a claim token from https://www.plex.tv/claim (valid ~4 minutes)."
+        read -r -p "  Plex claim token: " PLEX_CLAIM
+        read -r -p "  Port (optional, press Enter to use default 8443): " PLEX_PORT_IN
+        PLEX_HTTPS_PORT="${PLEX_PORT_IN:-8443}"
+        echo "  Remember to forward external port ${PLEX_HTTPS_PORT} for remote access."
+        ;;
+esac
+
 # --- Write .env -------------------------------------------------------------
 umask 077
 cat > "${ENV_FILE}" <<EOF
@@ -150,6 +199,15 @@ DNS2=${DNS2}
 FILEBROWSER_ROOT=/srv/mergerfs/media/share
 # Initial password for Filebrowser admin
 INITIAL_FILEBROWSER_PASSWORD=hellofilebrowser
+
+# Which services to run (Docker Compose profiles). Comma-separated, no spaces.
+# Edit this and re-run 'docker compose up -d' to change the active services.
+COMPOSE_PROFILES=${COMPOSE_PROFILES}
+
+# Plex
+# One-time claim token (only for first setup).
+PLEX_CLAIM=${PLEX_CLAIM}
+PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 EOF
 
 chmod 600 "${ENV_FILE}"
@@ -158,4 +216,8 @@ echo "Wrote ${ENV_FILE} (mode 600)."
 echo
 echo "Public URL will be:   https://${NOIP_NAME}.ddns.net"
 echo "Internal LAN target:  ${LOCAL_IP}"
+echo "Enabled services:     ${COMPOSE_PROFILES:-<none>}"
+case ",${COMPOSE_PROFILES}," in
+    *,plex,*) echo "Plex URL:             https://${NOIP_NAME}.ddns.net:${PLEX_HTTPS_PORT}/web" ;;
+esac
 

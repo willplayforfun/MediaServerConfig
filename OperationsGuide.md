@@ -37,6 +37,11 @@ While logged in with an admin account:
 - Settings → Users → Add User
 - Users can be admin or regular
 
+## Creating a new Plex user
+Plex accounts are managed through your Plex account rather than locally:
+- Plex Web → Settings → Users & Sharing → invite by email (Plex Home / Managed Users)
+- Shared users get access to the libraries you grant them
+
 
 # Uploading Media
 
@@ -50,20 +55,31 @@ I highly recommend using [tinyMediaManager](https://www.tinymediamanager.org/) (
 
 If you are curious which ports are relevant:
 
-## OpenMediaVault (OMV)
+## Public
+
+### OpenMediaVault (OMV)
 - 22 - SSH (key only auth)
 - 222 - SFTP (key only auth)
 
-### Internal Network Only
-- 445 - SMB
-- 8888 - Workbench (admin web ui)
-
-## Nginx
+### Nginx
 - 80 - HTTP, Let's Encrypt ACME challenges + redirect to HTTPS
 - 443 - HTTPS, all web traffic (proxy + help site)
 
-## Jellyfin
+### Plex
+- 8443 - HTTPS. Configurable via `PLEX_HTTPS_PORT`.
+
+## Internal Network Only
+
+### OpenMediaVault (OMV)
+- 445 - SMB
+- 8888 - Workbench (admin web ui)
+
+### Jellyfin
 - 8096 - webui (routed to by Nginx)
 
-## Audiobookshelf
+### Universal Media Server
+- 9001 - admin web UI
+- 1044, 5001 - DLNA/UPnP services (plus SSDP multicast discovery; LAN only)
+
+### Audiobookshelf
 - 13378 - webui (routed to by Nginx)

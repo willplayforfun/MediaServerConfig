@@ -53,6 +53,8 @@ Either with a keyboard connected to the server or via SSH:
 - Run env-setup script: `bash /opt/docker/env-setup.sh`
     - enter your DDNS hostname; not including the `.ddns.net` part
     - enter your DDNS Key username and password
+    - choose which services to enable. You can re-run the script later to change the mix.
+    - if you enable Plex, you'll be asked for a claim token. Get it from [https://www.plex.tv/claim]. You can leave the port at the default `8443`.
 
 ## Install OMV-Extras
 
@@ -107,6 +109,7 @@ Storage → Shared Folders. For each folder we create, set the filesystem to `me
 | media-music        | music/        |
 | media-audiobooks   | audiobooks/   |
 | media-podcasts     | podcasts/     |
+| media-vr360        | vr360/        |
 
 You can also create additional folders for network file sharing using the same scheme. By default, a filebrowser UI exists that points at `share/`
 
@@ -168,6 +171,7 @@ Services → Fail2ban → Settings
 On your router, forward these ports to your server:
 - External port 80 → Internal port 80 (TCP) – required for Let's Encrypt
 - External port 443 → Internal port 443 (TCP) – HTTPS traffic
+- (Plex only) External port 8443 → Internal port 8443 (TCP). Use whatever port you set `PLEX_HTTPS_PORT` to (default is 8443).
 
 ## Configure dnsmasq
 Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Server" in your router's config to the internal IP of your server. 
@@ -176,4 +180,4 @@ NOTE: It is important that your router never re-assign the IP of the server when
 
 # Service Setup
 
-See the individual guides for [Jellyfin](JellyfinSetupGuide.md), [Navidrome](NavidromeSetupGuide.md), and [Audiobookshelf](AudiobookshelfSetupGuide.md).
+See the individual guides for [Jellyfin](JellyfinSetupGuide.md), [Plex](PlexSetupGuide.md), [Universal Media Server](UniversalMediaServerSetupGuide.md), [Navidrome](NavidromeSetupGuide.md), and [Audiobookshelf](AudiobookshelfSetupGuide.md).
