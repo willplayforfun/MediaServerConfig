@@ -84,5 +84,9 @@ server {
         proxy_set_header Connection "upgrade";
 
         proxy_buffering off;
+
+        # Plex generates http:// Location headers regardless of X-Forwarded-Proto;
+        # rewrite them to https:// before they reach the browser.
+        proxy_redirect http:// https://;
     }
 }
