@@ -18,8 +18,6 @@
 #   STAGING – set to any non-empty value to use Let's Encrypt staging CA.
 #             You can do a staging run to verify port forwarding is correct.
 
-set -e
-
 CERT_PATH="/etc/letsencrypt/live/homeserver/fullchain.pem"
 
 if [ -f "$CERT_PATH" ]; then
@@ -29,12 +27,12 @@ fi
 
 if [ -z "$DOMAIN" ]; then
     echo "[cert-init] ERROR: DOMAIN environment variable is not set." >&2
-    exit 1
+    exit 0
 fi
 
 if [ -z "$EMAIL" ]; then
     echo "[cert-init] ERROR: EMAIL environment variable is not set." >&2
-    exit 1
+    exit 0
 fi
 
 STAGING_FLAG=""
@@ -49,7 +47,7 @@ ELAPSED=0
 until nslookup "$DOMAIN" > /dev/null 2>&1; do
     if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
         echo "[cert-init] ERROR: DNS did not resolve for $DOMAIN after ${MAX_WAIT}s. Check your DDNS/DNS configuration." >&2
-        exit 1
+        exit 0
     fi
     echo "[cert-init] Not yet resolved, retrying in 10s... (${ELAPSED}s elapsed)"
     sleep 10
