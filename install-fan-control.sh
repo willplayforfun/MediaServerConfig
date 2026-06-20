@@ -24,6 +24,40 @@ echo "Detecting hardware sensors (this may take a minute)..."
 # so they load on every boot.
 sensors-detect --auto
 
+# sensors-detect doesn't always find Nuvoton/Winbond fan controller chips
+# (common on Intel consumer boards) because they sit at non-standard addresses.
+# Try the two most common drivers and load them into /etc/modules if they
+# expose PWM controls.
+echo
+echo "Probing for additional fan controller modules..."
+_found_pwm=false
+for _mod in nct6775 it87; do
+    if modprobe "$_mod" 2>/dev/null; then
+        if find /sys/class/hwmon -name 'pwm[0-9]' 2>/dev/null | grep -q .; then
+            echo "  Found PWM controls via module '$_mod'."
+            if ! grep -qx "$_mod" /etc/modules 2>/dev/null; then
+                echo "$_mod" >> /etc/modules
+            fi
+            _found_pwm=true
+            break
+        else
+            modprobe -r "$_mod" 2>/dev/null || true
+        fi
+    fi
+done
+
+if ! $_found_pwm; then
+    echo
+    echo "WARNING: No PWM fan controls found after probing all known drivers."
+    echo "Your motherboard may not expose fan control to the OS."
+    echo "Consider setting fan curves in BIOS instead."
+    echo
+    echo "If you believe fan control should be available, check:"
+    echo "  dmesg | grep -i hwmon"
+    echo "  find /sys/class/hwmon -name 'pwm*'"
+    exit 1
+fi
+
 echo
 echo "Starting fan curve configuration."
 echo "pwmconfig will probe your hardware and walk you through setting speed curves."
