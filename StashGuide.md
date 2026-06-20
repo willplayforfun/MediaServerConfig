@@ -26,4 +26,4 @@ In the settings menu, it can be nice to enable:
     - Disable "Show scrubber"
 - Metadata Providers -> Installed Scrapers
     - Add sources to pull metadata relevant to your videos
-
+- Security -> Maximum session age to something like 604800

@@ -240,6 +240,8 @@ Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Serv
 
 NOTE: It is important that your router never re-assign the IP of the server when using dnsmasq. Make sure to assign the server a static IP.
 
+NOTE: without this step or without supporting Hairpin NAT on your router, your server can only be accessed by `<server-ip>` within your home network, not by `<your-domain>`.
+
 # Service Setup
 
 See the individual guides for 
