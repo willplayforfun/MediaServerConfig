@@ -85,12 +85,6 @@ while [[ ! "${DNS_CHOICE}" =~ ^[123]$ ]]; do
     read -r -p "  Please enter 1, 2, or 3: " DNS_CHOICE
 done
 
-# Clear provider-specific vars before re-populating from the chosen provider.
-NOIP_USERNAME=""
-NOIP_PASSWORD=""
-NOIP_HOSTNAMES=""
-CF_API_TOKEN=""
-
 case "${DNS_CHOICE}" in
     1)
         DNS_PROVIDER="none"
