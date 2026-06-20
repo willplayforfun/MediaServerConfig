@@ -5,7 +5,6 @@ I am endeavoring to make it dead simple to self-host a media server in my home, 
 Services that can be provided on this server include:
 - [Jellyfin](https://jellyfin.org/) - video streaming. Replaces Netflix, Hulu, etc. Similar to Plex, but truly free.
 - [Plex](https://www.plex.tv/) - video streaming, as an alternative to Jellyfin. Can serve the same movie/TV libraries.
-- [Universal Media Server](https://www.universalmediaserver.com/) - a DLNA/UPnP server for devices that discover media over the LAN, such as streaming 360 video to a VR headset.
 - [Audiobookshelf](https://www.audiobookshelf.org/) - audiobook and podcast streaming and downloads. Replaces Audible.
 - [Navidrome](https://www.navidrome.org/) - music streaming and downloads. Replaces Spotify.
 - Help Pages - static HTML guides for your friends and family.
@@ -89,17 +88,4 @@ For security purposes, I recommend not exposing the admin UIs (OMV's workbench a
 ### Local DNS
 Once you are used to accessing your server by typing in a domain, it is convenient to have that work on your home network. However, some routers don't support "hairpin NATs", which just means that it can't send outgoing packets to itself. The solution is to take the router out of the equation - host a local DNS server (using [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)) that can reroute your domain name to the server's internal network IP, rather than your public IP.
 
-# Repository Notes
-
-## What Goes in the Repo
-- docker-compose.yml
-- Nginx config files (e.g., helpsite default.conf)
-- Help page HTML/CSS
-- Any custom scripts (backup scripts, cron jobs, etc.)
-- Documentation
-
-## What Does NOT Go in the Repo
-- Media files
-- Docker persistent data (databases, caches, generated thumbnails)
-- Secrets (passwords, API keys) – use a .env file excluded via .gitignore
 

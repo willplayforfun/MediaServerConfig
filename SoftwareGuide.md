@@ -1,10 +1,11 @@
 Read through these instructions line by line. Each is important.
 
 # Prerequisites
-- No-IP DDNS
+- If using No-IP DDNS:
     - Create an account, claim a domain.
-    - Generate a DDNS Key. Write down the username and password for later.
-        - TODO: how?
+    - Generate a DDNS Key. 
+        - Go to "DDNS & Remote Access" → "DDNS Keys" → "Add Group" on the [NoIP.com] website.
+        - Write down the username and password for later. 
 - Router admin access for port forwarding
 - Flash drive (2 GB should be enough)
 - [Server hardware](HardwareGuide.md) with an SSD for the OS and at least 1 drive for your data.
@@ -50,11 +51,11 @@ On Windows, you can use the command prompt:
 ```
 ssh-keygen -t ed25519 -C "MediaServer Root Key"
 ```
-It will ask you for a filename, you can enter something like `.ssh/mediaserver-root-key` to avoid having it use the default name of `id_ed25519`, which is helpful for keeping track of it in the future.
+It will ask you for a filename, you can enter something like `mediaserver-root-key` to avoid having it use the default name of `id_ed25519`, which is helpful for keeping track of it in the future.
 
-The private key is saved as a file with no extension, while the public key has `.pub`. Windows SSH will look for keys in the `.ssh` folder under your User folder, so having `.ssh/` in the above name is helpful.
+The private key is saved as a file with no extension, while the public key has `.pub`. They will be placed wherever your command prompt is running. If launched via the Start Menu, that will be your User folder.
 
-To add the key to the server for SSH, run the following. Replacing with `<key-name>` with the full string you entered, e.g. `.ssh/mediaserver-root-key`. Replace <server-ip> with your server's IP:
+To add the key to the server for SSH, run the following. Replacing with `<key-name>` with the full name you entered, e.g. `mediaserver-root-key`. Replace `<server-ip>` with your server's IP:
 ```
 type %USERPROFILE%\<key-name>.pub | ssh root@<server-ip> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys" 
 ```
@@ -90,14 +91,14 @@ Either with a keyboard connected to the server or via SSH:
         - enter your DDNS hostname; not including the `.ddns.net` part
         - enter your DDNS Key username and password. Get this from "DDNS & Remote Access" → "DDNS Keys" → "Add Group" on the [NoIP.com] website.
     - choose which services to enable. You can re-run the script later to change the mix.
-    - if you enable Plex, you'll be asked for a claim token. Get it from [https://www.plex.tv/claim]. You can leave the port at the default `8443`.
+    - if you enable Plex, you can ignore the Plex claim token to start; it will go stale before you can use it.
 
 ### Fan Speed Control (optional)
 
 To set up quiet, temperature-responsive fan curves:
 - Run `bash /opt/docker/install-fan-control.sh`
 
-This installs `lm-sensors` and `fancontrol`, probes for fan controllers, then runs the interactive `pwmconfig` wizard to let you set a thermal curve for your motherboard. Verify with `sensors` and adjust `/etc/fancontrol` if needed.
+But it won't work on all hardware, so don't be bummed if it fails out.
 
 ### Install OMV-Extras
 
@@ -167,6 +168,13 @@ In OMV web UI:
     - Set the relative path to `opt/docker/` 
 - Under Services → Compose → Settings – set the Shared Folder to `docker`.
 
+Finally, in either SSH or via keyboard-and-monitor:
+```
+cd /opt/docker
+docker compose up -d
+```
+This launches all the services.
+
 ## Configure SMB
 
 Services → SMB/CIFS → Settings. Enable it. Standard options are fine.
@@ -195,6 +203,12 @@ All SFTP users will be able to see all folders in the merged media filesystem. H
 
 NOTE: You can grant additional permissions to specific users or other user groups, and those permission will apply to SFTP actions.
 
+Finally, in either SSH or via keyboard-and-monitor:
+```
+chmod 755 /srv/mergerfs
+```
+This prevents SSH/SFTP from rejecting logins.
+
 
 # First User Setup
 
@@ -205,7 +219,7 @@ Follow the user creation steps in the [Operations Guide](OperationsGuide.md).
 # Network Setup
 
 ## Install Fail2ban
-System → Plugins → install `openmediavault-fail2ban`. This will block bots that try to brute-force attack your server.
+System → Plugins → install `openmediavault-fail2ban`. This will block bots that try to brute-force attack your server. Important before forwarding ports to the internet.
 
 Services → Fail2ban → Settings 
 - Enable: true
@@ -216,7 +230,10 @@ Services → Fail2ban → Settings
 On your router, forward these ports to your server:
 - External port 80 → Internal port 80 (TCP) – required for Let's Encrypt
 - External port 443 → Internal port 443 (TCP) – HTTPS traffic
+- (SFTP only) External port 222 → Internal port 222 (TCP) – SFTP traffic
 - (Plex only) External port 8443 → Internal port 8443 (TCP). Use whatever port you set `PLEX_HTTPS_PORT` to (default is 8443).
+
+Restart the server at this point. Otherwise, the TLS certificates won't be created.
 
 ## Configure dnsmasq
 Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Server" in your router's config to the internal IP of your server. 
@@ -225,4 +242,10 @@ NOTE: It is important that your router never re-assign the IP of the server when
 
 # Service Setup
 
-See the individual guides for [Jellyfin](JellyfinSetupGuide.md), [Plex](PlexSetupGuide.md), [Universal Media Server](UniversalMediaServerSetupGuide.md), [Navidrome](NavidromeSetupGuide.md), and [Audiobookshelf](AudiobookshelfSetupGuide.md).
+See the individual guides for 
+- [Jellyfin](JellyfinSetupGuide.md)
+- [Plex](PlexSetupGuide.md)
+- [Universal Media Server](UniversalMediaServerSetupGuide.md)
+- [Navidrome](NavidromeSetupGuide.md)
+- [Audiobookshelf](AudiobookshelfSetupGuide.md)
+- [Filebrowser](FilebrowserSetupGuide.md)

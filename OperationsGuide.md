@@ -7,6 +7,7 @@ You only need to add a new system user if you want to grant SFTP/SMB access. Oth
     - (they may need to convert the private key to `.ppk` with PuttyGen if using WinSCP)
     - Have them send you their public key
 - Create new user in OMV workbench
+- Set "Shell" to `/usr/sbin/nologin`
 - Add them to the groups `users` and `sftp-access`
 - Add public key in user config
 
