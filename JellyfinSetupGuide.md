@@ -29,6 +29,15 @@ Each user gets their own watch history, favorites, and continue-watching. See th
 # Connecting with a Client
 In the app, set the server URL to `https://<your-domain>/jellyfin`.
 
+# Subtitles
+If you have issues with subtitles causing videoplayer crashes, go to User Settings → Subtitles and set "Preferred subtitle mode" to **Only forced** or **None** — this prevents it from using embedded subtitle streams.
+
 # Helpful Software
 **Jelly Party** to help synchronize and watch together: https://www.jelly-party.com/
 **tinyMediaManager** to help with renaming, metadata, thumbnails: https://www.tinymediamanager.org/
+**Bazarr** to automatically download and sync subtitles: see [BazarrSetupGuide.md](BazarrSetupGuide.md)
+
+To permanently strip problem subtitle tracks from a file, `mkvmerge` (from the `mkvtoolnix` package) can remove specific tracks without re-encoding:
+```bash
+mkvmerge -o output.mkv --subtitle-tracks "" input.mkv
+```
