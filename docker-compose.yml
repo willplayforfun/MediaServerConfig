@@ -89,7 +89,7 @@ services:
     # down backend returns 502 instead of blocking nginx startup.
     depends_on:
       cert-init:
-        condition: service_completed_successfully
+        condition: service_completed
       helpsite-render:
         condition: service_completed_successfully
       nginx-render:
