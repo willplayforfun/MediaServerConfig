@@ -16,7 +16,7 @@ Since it uses Nginx to proxy traffic to each service, it can also host static we
 
 The setup uses Docker to contain each service. It is built on [OpenMediaVault](https://www.openmediavault.org/), a Debian Linux distribution designed to host a networked storage server. It uses `mergerfs` to pool together multiple hard drives into a single volume, and then `SnapRAID` to provide security against data loss due to disk failure. [No-IP](https://www.noip.com/) provides DDNS services, while `dnsmasq` allows you to use that domain within your home network.
 
- The server can be made accessible to the wider internet by forwarding two ports from your public IP to your server, and by signing up for a free Dynamic DNS address.
+The server can be made accessible to the wider internet by forwarding two ports from your public IP to your server, and by signing up for a free Dynamic DNS address.
 
 # Getting Started
 

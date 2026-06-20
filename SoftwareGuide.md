@@ -15,14 +15,18 @@ Read through these instructions line by line. Each is important.
 # OpenMediaVault Installation
 - Download the latest OMV ISO from https://www.openmediavault.org/download.html
 - Flash the ISO to a USB drive using [Rufus](https://rufus.ie/en/).
+- Plug your server into your Ethernet LAN network.
 - Boot your server from the USB drive.
-- Follow the Debian installer. Key choices:
-	- Hostname: e.g., myserver - NOTE: this name will show up e.g. on your network shared folder and your "connected devices" list on your router config page
+- Follow the Debian installer. Key screens:
+	- Hostname: e.g., `myserver` - NOTE: this name will show up e.g. on your network shared folder and your "connected devices" list on your router config page
+    - Domain name (unimportant, use default: `lan`)
 	- Root password: choose something strong and save it - I wrote mine on a sticky note and stuck it to the server
+    - You can ignore any warnings about BIOS and UEFI mode while partitioning.
 	- Install destination: select your OS SSD – NOT your data HDDs.
 - Once installation completes, remove the USB drive and reboot.
 - If you left your data drives disconnected, now is the time to reconnect them (while the server is off!).
-- After reboot, log in at the console using the root password. Run `ip addr` to find your server's IP on your local network. It will be something like `192.168.1.XXX`, under an entry that looks like `eth0` or `enp1s0`. Write it down for later use.
+- After reboot, log in at the console using the login name `root` and the root password you set (remember that the password will not display as you type it in). 
+- Run `ip addr` to find your server's IP on your local network. It will be something like `192.168.1.XXX`, under an entry that looks like `eth0` or `enp1s0`. Write it down for later use, anywhere you see `<server-ip>` in these guides.
 
 # Initial OMV Setup
 Access the OMV web UI at `http://<server-ip>` in your browser. Default login:
@@ -30,38 +34,70 @@ Access the OMV web UI at `http://<server-ip>` in your browser. Default login:
 - Password: `openmediavault`
 
 ## First Steps
-- Change the admin password: User Settings (person icon in top bar) → Change Password
+- Change the admin password: "User Settings" (person icon in top bar) → "Change Password"
 	- I recommend saving this password in a password manager, like LastPass.
 	- I recommend re-using this `admin` username and password across all the admin accounts we set up, to make it easier to log in. 
-- Update the system: System → Update Management → Check for updates → Install all.
-- Enable SSH: Services → SSH → Enable
-	- I recommend generating a keypair and using that to authenticate for SSH and SFTP, rather than using a password. It is more secure and more convenient.
-        - TODO: How?
-	- It is generally recommended to disable password-based login before exposing your server to the internet.
-        - TODO: How?
-- Set the Port in System → Workbench → Settings to `8888`. Going forwards, the OMV web UI is accessed at `http://<server-ip>:8888`
+- Update the system: "System" → "Update Management" → "Check for updates" → "Install all".
+- Enable SSH: "Services" → "SSH" → "Enable"
+	- I recommend generating a keypair and using that to authenticate for SSH and SFTP, rather than using a password. It is more secure and more convenient. See ["Generating SSH Keypair" section below](#Generating-SSH-Keypair).
+	- It is generally recommended to disable password-based login before exposing your server to the internet. See ["Disabling Password Login" section below](#Disabling-Password-Login).
+- Set the Port in "System" → "Workbench" → "Settings" to `8888`. Going forwards, the OMV web UI is accessed at `http://<server-ip>:8888`
     - Setting the automatic logout to 1 day or Disabled is helpful
 
-# OMV Plugins and Docker Setup
-If you are comfortable using SSH, it can be easier for the next terminal steps here. (i.e. `ssh root@<server-ip>`).
+### Generating SSH Keypair
+On Windows, you can use the command prompt:
+```
+ssh-keygen -t ed25519 -C "MediaServer Root Key"
+```
+It will ask you for a filename, you can enter something like `.ssh/mediaserver-root-key` to avoid having it use the default name of `id_ed25519`, which is helpful for keeping track of it in the future.
 
-## Clone the Repository
+The private key is saved as a file with no extension, while the public key has `.pub`. Windows SSH will look for keys in the `.ssh` folder under your User folder, so having `.ssh/` in the above name is helpful.
+
+To add the key to the server for SSH, run the following. Replacing with `<key-name>` with the full string you entered, e.g. `.ssh/mediaserver-root-key`. Replace <server-ip> with your server's IP:
+```
+type %USERPROFILE%\<key-name>.pub | ssh root@<server-ip> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys" 
+```
+Finally, make sure this checkbox is checked in the OMV web UI: "Services" → "SSH" → "Public key authentication".
+
+I like to save my keys in cloud storage so I can SSH from anywhere and never lose it.
+
+### Using SSH Keypair
+On Windows, if doing SSH in the terminal, use the key via:
+```
+ssh -i "~/<key-name>" root@<server-ip>
+```
+
+If using PuTTY:
+- First user PuTTYgen to convert the private key file to a `.ppk` via "Conversions" → "Import key".
+- Set username to `root` under "Connections" → "Data" → "Auto-login username".
+- Link to *private* key file under  "Connections" → "SSH" → "Auth" → "Credentials" → "Private key file for authentication"
+
+### Disabling Password Login
+Only do this after setting a keypair for SSH. In the OMV web UI, disable this checkbox: Services → SSH → Password authentication.
+
+# OMV Extras Setup
+
+The next steps can either be accomplished via SSH or direct keyboard-and-monitor terminal, if you are comfortable using SSH, it can be easier for the terminal steps (i.e. via `ssh root@<server-ip>`). If using an SSH key, see the ["Using SSH Keypair" section above](#Using-SSH-Keypair).
+
+### Clone the Repository
 
 Either with a keyboard connected to the server or via SSH:
 - Install git: `apt install git`
-- Clone repo: `git clone https://github.com/willplayforfun/HomeServer1Config.git /opt/docker`
+- Clone repo: `git clone https://github.com/willplayforfun/MediaServerConfig.git /opt/docker`
 - Run env-setup script: `bash /opt/docker/env-setup.sh`
     - enter your DDNS hostname; not including the `.ddns.net` part
     - enter your DDNS Key username and password
     - choose which services to enable. You can re-run the script later to change the mix.
     - if you enable Plex, you'll be asked for a claim token. Get it from [https://www.plex.tv/claim]. You can leave the port at the default `8443`.
 
-## Install OMV-Extras
+### Install OMV-Extras
 
 Still with a keyboard connected or via SSH:
 - Run `bash /opt/docker/install-omv-extras.sh`
 
 Now refresh the OMV web UI. New options will appear under System → Plugins. 
+
+# OMV Plugins and Docker Setup
 
 ## Install Plugins
 mergerfs combines your data drives into a single pool. SnapRAID provides parity so you can recover from a drive failure.

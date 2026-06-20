@@ -15,10 +15,12 @@ To be done:
 - auto-deployment on github push
 - document my physical build
 
-- guide to downloading from Audible
 - guide to downloading from Spotify: https://github.com/Shabinder/SpotiFlyer
 - use fancontrol to decrease fan speed
 
 - subtitle downloading?
     - https://subliminal.readthedocs.io/en/latest/
     - https://subsync.online/
+
+- turn docs into a github wiki
+- add screenshots to docs
