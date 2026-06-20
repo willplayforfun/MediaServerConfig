@@ -3,7 +3,6 @@ To be done:
 - Expand helpsite: 
     - how to set up your own (link to github)
     - how to add files via SFTP
-    - how to run ssh key gen
     - how to use tinyMediaManager to format and generate NFO
     - desirable donations: HDDs, SSDs.
     - subscription-free alternatives hub: 
@@ -12,15 +11,9 @@ To be done:
         - self-hostable service alternatives
 
 - ops scripts: reset audiobookshelf password, fetch PIN for jellyfin password reset
-- auto-deployment on github push
 - document my physical build
 
 - guide to downloading from Spotify: https://github.com/Shabinder/SpotiFlyer
-- use fancontrol to decrease fan speed
-
-- subtitle downloading?
-    - https://subliminal.readthedocs.io/en/latest/
-    - https://subsync.online/
 
 - turn docs into a github wiki
 - add screenshots to docs

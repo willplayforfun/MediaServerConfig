@@ -85,10 +85,18 @@ Either with a keyboard connected to the server or via SSH:
 - Install git: `apt install git`
 - Clone repo: `git clone https://github.com/willplayforfun/MediaServerConfig.git /opt/docker`
 - Run env-setup script: `bash /opt/docker/env-setup.sh`
-    - enter your DDNS hostname; not including the `.ddns.net` part
-    - enter your DDNS Key username and password
+    - If setting up DDNS (NoIP.com):
+        - enter your DDNS hostname; not including the `.ddns.net` part
+        - enter your DDNS Key username and password. Get this from "DDNS & Remote Access" → "DDNS Keys" → "Add Group" on the [NoIP.com] website.
     - choose which services to enable. You can re-run the script later to change the mix.
     - if you enable Plex, you'll be asked for a claim token. Get it from [https://www.plex.tv/claim]. You can leave the port at the default `8443`.
+
+### Fan Speed Control (optional)
+
+To set up quiet, temperature-responsive fan curves:
+- Run `bash /opt/docker/install-fan-control.sh`
+
+This installs `lm-sensors` and `fancontrol`, probes for fan controllers, then runs the interactive `pwmconfig` wizard to let you set a thermal curve for your motherboard. Verify with `sensors` and adjust `/etc/fancontrol` if needed.
 
 ### Install OMV-Extras
 
@@ -109,12 +117,12 @@ mergerfs combines your data drives into a single pool. SnapRAID provides parity 
 > - 1 drive = SnapRAID parity (enables single-drive failure recovery)
 > **Note:** The parity drive must be at least as large as your largest data drive.
 
-- System → Plugins – install `openmediavault-snapraid`, `openmediavault-mergerfs`, and `openmediavault-sharerootfs`.
+- System → Plugins – install `openmediavault-snapraid`, `openmediavault-mergerfs`, and `openmediavault-compose`.
 - Apply changes when prompted.
 
 ## Prepare Drives in OMV
 - Storage → Disks – verify all HDDs appear. Make note of the name of your OS SSD (e.g. `/dev/sdb`).
-- Storage → File Systems – create EXT4 on each HDD.
+- Storage → File Systems – create EXT4 on each HDD, then mount the new filesystems.
     - Make sure the HDDs are empty. Getting data off the HDDs is beyond the scope of this guide.
 
 ## Confgure SnapRAID
