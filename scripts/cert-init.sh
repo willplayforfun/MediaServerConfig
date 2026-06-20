@@ -43,7 +43,19 @@ if [ -n "${STAGING:-}" ]; then
     STAGING_FLAG="--staging"
 fi
 
-echo "[cert-init] Requesting certificate for $DOMAIN ..."
+echo "[cert-init] Waiting for DNS to resolve $DOMAIN ..."
+MAX_WAIT=300
+ELAPSED=0
+until nslookup "$DOMAIN" > /dev/null 2>&1; do
+    if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
+        echo "[cert-init] ERROR: DNS did not resolve for $DOMAIN after ${MAX_WAIT}s. Check your DDNS/DNS configuration." >&2
+        exit 1
+    fi
+    echo "[cert-init] Not yet resolved, retrying in 10s... (${ELAPSED}s elapsed)"
+    sleep 10
+    ELAPSED=$((ELAPSED + 10))
+done
+echo "[cert-init] DNS resolved. Requesting certificate for $DOMAIN ..."
 
 certbot certonly \
     --standalone \
