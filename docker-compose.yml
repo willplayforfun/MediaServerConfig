@@ -276,7 +276,7 @@ services:
       - UMS_PROFILE=/profile
     volumes:
       - ./universalmediaserver/config:/profile
-      - /srv/mergerfs/media/vr360:/media:ro
+      - /srv/mergerfs/media/vr:/media:ro
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:

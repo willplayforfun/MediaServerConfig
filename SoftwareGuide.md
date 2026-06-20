@@ -43,6 +43,7 @@ Access the OMV web UI at `http://<server-ip>` in your browser. Default login:
 	- It is generally recommended to disable password-based login before exposing your server to the internet. See ["Disabling Password Login" section below](#Disabling-Password-Login).
 - Set the Port in "System" → "Workbench" → "Settings" to `8888`. Going forwards, the OMV web UI is accessed at `http://<server-ip>:8888`
     - Setting the automatic logout to 1 day or Disabled is helpful
+- Set "System" → "Power Management" → "Settings" → "CPU frequency scaling" to `powersave` or `Disabled`.
 
 ### Generating SSH Keypair
 On Windows, you can use the command prompt:
@@ -117,7 +118,7 @@ mergerfs combines your data drives into a single pool. SnapRAID provides parity 
 > - 1 drive = SnapRAID parity (enables single-drive failure recovery)
 > **Note:** The parity drive must be at least as large as your largest data drive.
 
-- System → Plugins – install `openmediavault-snapraid`, `openmediavault-mergerfs`, and `openmediavault-compose`.
+- System → Plugins – install `openmediavault-snapraid`, `openmediavault-mergerfs`.
 - Apply changes when prompted.
 
 ## Prepare Drives in OMV
@@ -153,7 +154,7 @@ Storage → Shared Folders. For each folder we create, set the filesystem to `me
 | media-music        | music/        |
 | media-audiobooks   | audiobooks/   |
 | media-podcasts     | podcasts/     |
-| media-vr360        | vr360/        |
+| media-vr          | vr/           |
 
 You can also create additional folders for network file sharing using the same scheme. By default, a filebrowser UI exists that points at `share/`
 
