@@ -8,7 +8,7 @@
 # Required environment:
 #   IN     source directory (read-only is fine)
 #   OUT    output directory (created if missing)
-#   VARS   space-separated envsubst allowlist, e.g. '${NOIP_NAME} ${LOCAL_IP}'
+#   VARS   space-separated envsubst allowlist, e.g. '${DOMAIN} ${LOCAL_IP}'
 #
 # Every variable named in VARS must also be present in the environment.
 # Designed to run inside the renderer image built from

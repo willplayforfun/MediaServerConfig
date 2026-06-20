@@ -1,9 +1,9 @@
 
 # Rendered into ./nginx-configs-rendered/nginx.conf by the nginx-render
-# container (envsubst). Only ${NOIP_NAME} and ${PLEX_HTTPS_PORT} are
-# substituted; every other $variable below is an nginx runtime variable and is
-# left untouched (envsubst is restricted to the VARS allowlist in
-# docker-compose.yml). Edit this template, not the rendered output.
+# container (envsubst). Only ${PLEX_HTTPS_PORT} is substituted; every other
+# $variable below is an nginx runtime variable and is left untouched
+# (envsubst is restricted to the VARS allowlist in docker-compose.yml).
+# Edit this template, not the rendered output.
 
 # ── LAN detection ─────────────────────────────────────────────────────────────
 # Adjust to match your actual home subnet if needed (RFC-1918 defaults here).
@@ -50,9 +50,9 @@ server {
 }
 
 # ── Plex (dedicated HTTPS port) ────────────────────────────────────────────────
-# Plex can't really be served under a subpath. Since we can't add a subdomain to a DDNS hostname, 
-# we give Plex its own TLS port and proxy it at the server root. 
-# The certificate is valid for the hostname regardless of port, so we reuse it here.
+# Plex can't be served under a subpath, so it gets its own TLS port and is
+# proxied at the server root. The certificate covers the hostname regardless of
+# port, so we reuse it here.
 server {
     listen ${PLEX_HTTPS_PORT} ssl;
     server_name _;

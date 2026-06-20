@@ -16,8 +16,8 @@ services:
       - OUT=/out
       # The literal string passed to envsubst as its allowlist. The $$ escapes
       # are needed so docker-compose doesn't try to expand these itself.
-      - VARS=$${NOIP_NAME} $${PLEX_HTTPS_PORT}
-      - NOIP_NAME=${NOIP_NAME}
+      - VARS=$${DOMAIN} $${PLEX_HTTPS_PORT}
+      - DOMAIN=${DOMAIN}
       - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 
   # ── Nginx Config Render ──────────────────────────────────────────────────────
@@ -37,8 +37,7 @@ services:
     environment:
       - IN=/in
       - OUT=/out
-      - VARS=$${NOIP_NAME} $${PLEX_HTTPS_PORT}
-      - NOIP_NAME=${NOIP_NAME}
+      - VARS=$${PLEX_HTTPS_PORT}
       - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 
   # ── dnsmasq Render ─────────────────────────────────────────────────────────
@@ -54,8 +53,8 @@ services:
     environment:
       - IN=/in
       - OUT=/out
-      - VARS=$${NOIP_NAME} $${LOCAL_IP}
-      - NOIP_NAME=${NOIP_NAME}
+      - VARS=$${DOMAIN} $${LOCAL_IP}
+      - DOMAIN=${DOMAIN}
       - LOCAL_IP=${LOCAL_IP}
 
   # ── Cert Init ──────────────────────────────────────────────────────────────
@@ -71,7 +70,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./scripts/cert-init.sh:/cert-init.sh:ro
     environment:
-      - DOMAIN=${NOIP_NAME}.ddns.net
+      - DOMAIN=${DOMAIN}
       - EMAIL=${CERTBOT_EMAIL}
       - STAGING=${STAGING:-}
     entrypoint: ["/bin/sh", "/cert-init.sh"]
@@ -139,7 +138,7 @@ services:
     devices:
       - /dev/dri:/dev/dri    # Intel Quick Sync
     environment:
-      - JELLYFIN_PublishedServerUrl=https://${NOIP_NAME}.ddns.net/jellyfin
+      - JELLYFIN_PublishedServerUrl=https://${DOMAIN}/jellyfin
 
   # ── Plex ───────────────────────────────────────────────────────────────────
   # Nginx terminates TLS on ${PLEX_HTTPS_PORT} and proxies Plex at the root
@@ -159,7 +158,7 @@ services:
     environment:
       # One-time claim token from https://www.plex.tv/claim (set by env-setup)
       - PLEX_CLAIM=${PLEX_CLAIM:-}
-      - ADVERTISE_IP=https://${NOIP_NAME}.ddns.net:${PLEX_HTTPS_PORT}/
+      - ADVERTISE_IP=https://${DOMAIN}:${PLEX_HTTPS_PORT}/
       - TZ=${TZ:-Etc/UTC}
 
   # ── Audiobookshelf ─────────────────────────────────────────────────────────
@@ -263,11 +262,24 @@ services:
   noip-duc:
     image: noipcom/noip-duc:latest
     container_name: noip-duc
+    profiles: ["noip"]
     restart: unless-stopped
     environment:
       - NOIP_USERNAME=${NOIP_USERNAME}
       - NOIP_PASSWORD=${NOIP_PASSWORD}
       - NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
+    network_mode: host   # needed so it can detect your real public IP
+
+  # ── Cloudflare DDNS ────────────────────────────────────────────────────────
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:latest
+    container_name: cloudflare-ddns
+    profiles: ["cloudflare"]
+    restart: unless-stopped
+    environment:
+      - CF_API_TOKEN=${CF_API_TOKEN}
+      - DOMAINS=${DOMAIN}
+      - PROXIED=false
     network_mode: host   # needed so it can detect your real public IP
 
   # ── dnsmasq (local DNS) ────────────────────────────────────────────────────

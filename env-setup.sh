@@ -34,41 +34,77 @@ while [ -z "${CERTBOT_EMAIL}" ]; do
     read -r -p "  Email cannot be empty. Try again: " CERTBOT_EMAIL
 done
 
-# --- NOIP_NAME --------------------------------------------------------------
-# The DDNS hostname prefix, e.g. 'myserver' for 'myserver.ddns.net'.
-read -r -p "DDNS hostname (the part BEFORE '.ddns.net', e.g. 'myserver'): " NOIP_NAME
-while [ -z "${NOIP_NAME}" ]; do
-    read -r -p "  Hostname cannot be empty. Try again: " NOIP_NAME
+# --- DNS_PROVIDER -----------------------------------------------------------
+echo
+echo "DNS / DDNS provider:"
+echo "  1) None       — no automatic DNS updates; you provide your full domain"
+echo "  2) NoIP       — free DDNS hostname on ddns.net (e.g. myserver.ddns.net)"
+echo "  3) Cloudflare — you own a domain managed on Cloudflare"
+read -r -p "Select [1/2/3]: " DNS_CHOICE
+while [[ ! "${DNS_CHOICE}" =~ ^[123]$ ]]; do
+    read -r -p "  Please enter 1, 2, or 3: " DNS_CHOICE
 done
 
-# --- NOIP_USERNAME ----------------------------------------------------------
-# The DDNS Key username.
-read -r -p "DDNS Key username: " NOIP_USERNAME
-while [ -z "${NOIP_USERNAME}" ]; do
-    read -r -p "  Username cannot be empty. Try again: " NOIP_USERNAME
-done
+# Initialise provider-specific vars so write_env always has them defined.
+NOIP_USERNAME=""
+NOIP_PASSWORD=""
+NOIP_HOSTNAMES=""
+CF_API_TOKEN=""
 
-# --- NOIP_PASSWORD ----------------------------------------------------------
-# The DDNS Key password. Read silently.
-while :; do
-    read -r -s -p "DDNS Key password: " NOIP_PASSWORD
-    echo
-    if [ -n "${NOIP_PASSWORD}" ]; then
-        break
-    fi
-    echo "  Password cannot be empty."
-done
+case "${DNS_CHOICE}" in
+    1)
+        DNS_PROVIDER="none"
+        read -r -p "Full public domain (e.g. home.example.com): " DOMAIN
+        while [ -z "${DOMAIN}" ]; do
+            read -r -p "  Domain cannot be empty. Try again: " DOMAIN
+        done
+        ;;
+    2)
+        DNS_PROVIDER="noip"
+        read -r -p "DDNS hostname (the part BEFORE '.ddns.net', e.g. 'myserver'): " NOIP_NAME
+        while [ -z "${NOIP_NAME}" ]; do
+            read -r -p "  Hostname cannot be empty. Try again: " NOIP_NAME
+        done
+        DOMAIN="${NOIP_NAME}.ddns.net"
 
-# --- NOIP_HOSTNAMES ---------------------------------------------------------
-# 'all.ddnskey.com' is a No-IP wildcard token that tells the DUC to update
-# every hostname associated with the DDNS key. 
-NOIP_HOSTNAMES="all.ddnskey.com"
+        read -r -p "DDNS Key username: " NOIP_USERNAME
+        while [ -z "${NOIP_USERNAME}" ]; do
+            read -r -p "  Username cannot be empty. Try again: " NOIP_USERNAME
+        done
+
+        while :; do
+            read -r -s -p "DDNS Key password: " NOIP_PASSWORD
+            echo
+            if [ -n "${NOIP_PASSWORD}" ]; then break; fi
+            echo "  Password cannot be empty."
+        done
+
+        # 'all.ddnskey.com' is a No-IP wildcard token that tells the DUC to
+        # update every hostname associated with the DDNS key.
+        NOIP_HOSTNAMES="all.ddnskey.com"
+        ;;
+    3)
+        DNS_PROVIDER="cloudflare"
+        read -r -p "Full public domain (e.g. home.example.com): " DOMAIN
+        while [ -z "${DOMAIN}" ]; do
+            read -r -p "  Domain cannot be empty. Try again: " DOMAIN
+        done
+
+        while :; do
+            read -r -s -p "Cloudflare API token (DNS edit permission for ${DOMAIN}): " CF_API_TOKEN
+            echo
+            if [ -n "${CF_API_TOKEN}" ]; then break; fi
+            echo "  Token cannot be empty."
+        done
+        ;;
+esac
 
 # --- LOCAL_IP ---------------------------------------------------------------
-# The server's LAN IP. 
+# The server's LAN IP.
 # Auto-detect by asking the kernel which source IP it uses to reach the
 # internet. This is more reliable than guessing interface names (eth0,
 # enp1s0, eno1, etc.)
+echo
 DETECTED_IP="$(detect_local_ip)"
 
 if [ -n "${DETECTED_IP}" ]; then
@@ -126,13 +162,16 @@ ask_service() {
     esac
 }
 
-ask_service jellyfin             "Jellyfin (video streaming)"                  Y
-ask_service plex                 "Plex (video streaming)"                      N
-ask_service universalmediaserver "Universal Media Server (DLNA, UPnP)"  N
-ask_service navidrome            "Navidrome (music streaming)"                 Y
-ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"      Y
-ask_service stash                "Stash (video streaming)"                                       N
+ask_service jellyfin             "Jellyfin (video streaming)"                 Y
+ask_service plex                 "Plex (video streaming)"                     N
+ask_service universalmediaserver "Universal Media Server (DLNA, UPnP)"       N
+ask_service navidrome            "Navidrome (music streaming)"                Y
+ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"     Y
+ask_service stash                "Stash (video streaming)"                    N
 ask_service filebrowser          "Filebrowser (web file manager)"             Y
+
+# Add the DNS provider profile so the right DDNS container starts.
+[ "${DNS_PROVIDER}" != "none" ] && PROFILES+=("${DNS_PROVIDER}")
 
 if [ ${#PROFILES[@]} -eq 0 ]; then
     COMPOSE_PROFILES=""
@@ -160,4 +199,3 @@ esac
 FILEBROWSER_ROOT="/srv/mergerfs/media/share"
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
 write_env "${ENV_FILE}"
-

@@ -27,11 +27,15 @@ detect_local_ip() {
 }
 
 # Writes .env and prints a summary to stderr.
-# All variables (CERTBOT_EMAIL, NOIP_NAME, ...) must be set before calling.
+# DNS_PROVIDER, DOMAIN, CERTBOT_EMAIL, LOCAL_IP, DNS1, DNS2,
+# COMPOSE_PROFILES, PLEX_CLAIM, PLEX_HTTPS_PORT,
+# FILEBROWSER_ROOT, INITIAL_FILEBROWSER_PASSWORD must be set before calling.
+# Provider-specific vars (NOIP_* or CF_API_TOKEN) must also be set when relevant.
 # $1 = destination file path
 write_env() {
     local env_file="$1"
     umask 077
+
     cat > "${env_file}" <<EOF
 # Generated on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -41,12 +45,34 @@ CERTBOT_EMAIL=${CERTBOT_EMAIL}
 # Remove or set to empty once you have confirmed cert issuance works.
 STAGING=
 
-# No-IP DDNS key configuration
-NOIP_NAME=${NOIP_NAME}
+# DNS provider: none | noip | cloudflare
+DNS_PROVIDER=${DNS_PROVIDER}
+
+# Public domain / FQDN used across all services and TLS certificates.
+DOMAIN=${DOMAIN}
+
+EOF
+
+    case "${DNS_PROVIDER}" in
+        noip)
+            cat >> "${env_file}" <<EOF
+# No-IP DDNS credentials
 NOIP_USERNAME=${NOIP_USERNAME}
 NOIP_PASSWORD=${NOIP_PASSWORD}
 NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
 
+EOF
+            ;;
+        cloudflare)
+            cat >> "${env_file}" <<EOF
+# Cloudflare API token with DNS edit permission for ${DOMAIN}
+CF_API_TOKEN=${CF_API_TOKEN}
+
+EOF
+            ;;
+    esac
+
+    cat >> "${env_file}" <<EOF
 # Server LAN IP
 LOCAL_IP=${LOCAL_IP}
 
@@ -61,7 +87,8 @@ FILEBROWSER_ROOT=${FILEBROWSER_ROOT}
 INITIAL_FILEBROWSER_PASSWORD=${INITIAL_FILEBROWSER_PASSWORD}
 
 # Which services to run (Docker Compose profiles). Comma-separated, no spaces.
-# Edit this and re-run 'docker compose up -d' to change the active services.
+# Includes media service profiles (jellyfin, plex, ...) and the DNS provider
+# profile (noip or cloudflare). Edit and re-run 'docker compose up -d' to change.
 COMPOSE_PROFILES=${COMPOSE_PROFILES}
 
 # Plex
@@ -70,14 +97,16 @@ PLEX_CLAIM=${PLEX_CLAIM}
 # Port nginx uses to serve Plex over HTTPS (Plex can't live under a subpath).
 PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 EOF
+
     chmod 600 "${env_file}"
     echo "Wrote ${env_file} (mode 600)." >&2
     echo >&2
-    echo "Public URL:       https://${NOIP_NAME}.ddns.net" >&2
+    echo "Public URL:       https://${DOMAIN}" >&2
     echo "LAN IP:           ${LOCAL_IP}" >&2
+    echo "DNS provider:     ${DNS_PROVIDER}" >&2
     echo "Enabled services: ${COMPOSE_PROFILES:-<none>}" >&2
     case ",${COMPOSE_PROFILES}," in
-        *,plex,*) echo "Plex URL:         https://${NOIP_NAME}.ddns.net:${PLEX_HTTPS_PORT}/web" >&2 ;;
+        *,plex,*) echo "Plex URL:         https://${DOMAIN}:${PLEX_HTTPS_PORT}/web" >&2 ;;
     esac
     case ",${COMPOSE_PROFILES}," in
         *,universalmediaserver,*) echo "UMS admin (LAN):  http://${LOCAL_IP}:9001" >&2 ;;

@@ -7,11 +7,15 @@
 #
 # Required vars:
 #   CERTBOT_EMAIL     email for Let's Encrypt notifications
-#   NOIP_NAME         DDNS hostname prefix (the part before .ddns.net)
-#   NOIP_USERNAME     DDNS Key username
-#   NOIP_PASSWORD     DDNS Key password
+#   DNS_PROVIDER      DNS/DDNS provider: none | noip | cloudflare
+#   DOMAIN            full public FQDN (e.g. myserver.ddns.net, home.example.com)
 #   COMPOSE_PROFILES  comma-separated list of enabled service profiles
 #                     (empty = only infrastructure; a warning is printed)
+#                     include the DNS provider profile (noip or cloudflare) here
+#
+# Provider-specific required vars:
+#   DNS_PROVIDER=noip:        NOIP_USERNAME, NOIP_PASSWORD
+#   DNS_PROVIDER=cloudflare:  CF_API_TOKEN
 #
 # Optional vars (auto-detected or defaulted when absent/empty):
 #   LOCAL_IP                      server LAN IP; auto-detected if empty
@@ -38,18 +42,41 @@ fail() { echo "Error: $*" >&2; exit 1; }
 
 # --- Required inputs ---------------------------------------------------------
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
-NOIP_NAME="${NOIP_NAME:-}"
-NOIP_USERNAME="${NOIP_USERNAME:-}"
-NOIP_PASSWORD="${NOIP_PASSWORD:-}"
+DNS_PROVIDER="${DNS_PROVIDER:-}"
+DOMAIN="${DOMAIN:-}"
 COMPOSE_PROFILES="${COMPOSE_PROFILES:-}"
 
 [ -n "$CERTBOT_EMAIL" ]  || fail "CERTBOT_EMAIL is required."
-[ -n "$NOIP_NAME" ]      || fail "NOIP_NAME is required."
-[ -n "$NOIP_USERNAME" ]  || fail "NOIP_USERNAME is required."
-[ -n "$NOIP_PASSWORD" ]  || fail "NOIP_PASSWORD is required."
+[ -n "$DNS_PROVIDER" ]   || fail "DNS_PROVIDER is required (none | noip | cloudflare)."
+[ -n "$DOMAIN" ]         || fail "DOMAIN is required (e.g. myserver.ddns.net, home.example.com)."
 
 [ -n "$COMPOSE_PROFILES" ] \
     || echo "Warning: COMPOSE_PROFILES is empty; only infrastructure containers will start." >&2
+
+# --- Provider-specific required inputs ---------------------------------------
+NOIP_USERNAME=""
+NOIP_PASSWORD=""
+NOIP_HOSTNAMES=""
+CF_API_TOKEN=""
+
+case "${DNS_PROVIDER}" in
+    noip)
+        NOIP_USERNAME="${NOIP_USERNAME:-}"
+        NOIP_PASSWORD="${NOIP_PASSWORD:-}"
+        [ -n "$NOIP_USERNAME" ] || fail "NOIP_USERNAME is required when DNS_PROVIDER=noip."
+        [ -n "$NOIP_PASSWORD" ] || fail "NOIP_PASSWORD is required when DNS_PROVIDER=noip."
+        NOIP_HOSTNAMES="all.ddnskey.com"
+        ;;
+    cloudflare)
+        CF_API_TOKEN="${CF_API_TOKEN:-}"
+        [ -n "$CF_API_TOKEN" ] || fail "CF_API_TOKEN is required when DNS_PROVIDER=cloudflare."
+        ;;
+    none)
+        ;;
+    *)
+        fail "DNS_PROVIDER must be 'none', 'noip', or 'cloudflare'. Got: '${DNS_PROVIDER}'."
+        ;;
+esac
 
 # --- LOCAL_IP: auto-detect if not supplied -----------------------------------
 LOCAL_IP="${LOCAL_IP:-}"
@@ -69,7 +96,6 @@ fi
 # --- Optional inputs with defaults -------------------------------------------
 DNS1="${DNS1:-1.1.1.1}"
 DNS2="${DNS2:-8.8.8.8}"
-NOIP_HOSTNAMES="all.ddnskey.com"
 PLEX_CLAIM="${PLEX_CLAIM:-}"
 PLEX_HTTPS_PORT="${PLEX_HTTPS_PORT:-8443}"
 FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}"
