@@ -87,6 +87,28 @@ location /music/ {
     proxy_buffering off;
 }
 
+# ── Calibre-Web ───────────────────────────────────────────────────────────────
+# Calibre-Web has no native base-url setting; it respects X-Script-Name (Flask
+# SCRIPT_NAME convention) for subpath deployment instead.
+location /books {
+    return 301 $scheme://$host/books/;
+}
+location /books/ {
+    set $calibreweb_upstream calibreweb;
+    proxy_pass http://$calibreweb_upstream:8083;
+
+    proxy_set_header X-Scheme      $scheme;
+    proxy_set_header X-Script-Name /books;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        "upgrade";
+}
+
 # ── Filebrowser ───────────────────────────────────────────────────────────────
 location /files {
     return 301 $scheme://$host/files/;

@@ -240,6 +240,25 @@ services:
     ports:
       - "6767:6767"
 
+  # ── Calibre-Web ────────────────────────────────────────────────────────────
+  # Ebook library browser/reader/OPDS server. Reverse-proxied under /books via
+  # the X-Script-Name header (no url_base setting needed in Calibre-Web itself).
+  calibreweb:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibreweb
+    profiles: ["calibreweb"]
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-Etc/UTC}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre   # convert/edit metadata (Calibre binaries)
+    volumes:
+      - ./calibreweb/config:/config
+      - /srv/mergerfs/media/books:/books
+    ports:
+      - "8083:8083"
+
   # ── Filebrowser ────────────────────────────────────────────────────────────
   # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
   # in .env — point it at whatever SMB share OMV exposes (e.g. /srv/mergerfs/media/share).
