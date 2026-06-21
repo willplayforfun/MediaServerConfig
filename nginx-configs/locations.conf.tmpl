@@ -95,6 +95,7 @@ location /books {
 }
 location /books/ {
     set $calibreweb_upstream calibreweb;
+    rewrite ^/books/(.*)$ /$1 break;
     proxy_pass http://$calibreweb_upstream:8083;
 
     proxy_set_header X-Scheme      $scheme;
