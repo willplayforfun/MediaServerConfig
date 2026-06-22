@@ -155,7 +155,8 @@ Storage → Shared Folders. For each folder we create, set the filesystem to `me
 | media-music        | music/        |
 | media-audiobooks   | audiobooks/   |
 | media-podcasts     | podcasts/     |
-| media-vr          | vr/           |
+| media-vr           | vr/           |
+| media-books        | books/        |
 
 You can also create additional folders for network file sharing using the same scheme. By default, a filebrowser UI exists that points at `share/`
 
@@ -251,3 +252,4 @@ See the individual guides for
 - [Navidrome](NavidromeSetupGuide.md)
 - [Audiobookshelf](AudiobookshelfSetupGuide.md)
 - [Filebrowser](FilebrowserSetupGuide.md)
+- [Calibre-Web](CalibreWebSetupGuide.md)

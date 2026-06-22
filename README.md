@@ -7,6 +7,7 @@ Services that can be provided on this server include:
 - [Plex](https://www.plex.tv/) - video streaming, as an alternative to Jellyfin. Can serve the same movie/TV libraries.
 - [Audiobookshelf](https://www.audiobookshelf.org/) - audiobook and podcast streaming and downloads. Replaces Audible.
 - [Navidrome](https://www.navidrome.org/) - music streaming and downloads. Replaces Spotify.
+- [Calibre Web](https://github.com/crocodilestick/Calibre-Web-Automated) - ebook library browsing, reading
 - Help Pages - static HTML guides for your friends and family.
 
 Each service can be turned on or off independently.
