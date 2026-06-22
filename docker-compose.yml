@@ -259,6 +259,12 @@ services:
       - /srv/mergerfs/media/books/ingest:/cwa-book-ingest
     ports:
       - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/login"]
+      start_period: 15s
+      interval: 30s
+      timeout: 120s
+      retries: 3
 
   # ── Filebrowser ────────────────────────────────────────────────────────────
   # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
