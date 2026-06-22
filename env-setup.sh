@@ -205,7 +205,6 @@ ask_service() {
 }
 
 ask_service jellyfin             "Jellyfin (video streaming)"                Y
-ask_service bazarr               "Bazarr (subtitle downloader & syncer)"     N
 ask_service plex                 "Plex (video streaming)"                    N
 ask_service universalmediaserver "Universal Media Server (DLNA, UPnP)"      N
 ask_service navidrome            "Navidrome (music streaming)"               Y

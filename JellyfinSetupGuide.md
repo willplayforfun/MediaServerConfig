@@ -42,7 +42,6 @@ If you have issues with subtitles causing videoplayer crashes, go to User Settin
 # Helpful Software
 **Jelly Party** to help synchronize and watch together: https://www.jelly-party.com/
 **tinyMediaManager** to help with renaming, metadata, thumbnails: https://www.tinymediamanager.org/
-**Bazarr** to automatically download and sync subtitles: see [BazarrSetupGuide.md](BazarrSetupGuide.md)
 
 To permanently strip problem subtitle tracks from a file, `mkvmerge` (from the `mkvtoolnix` package) can remove specific tracks without re-encoding:
 ```bash

@@ -220,26 +220,6 @@ services:
       - ./stash/blobs:/blobs
       - ./stash/generated:/generated
 
-  # ── Bazarr ─────────────────────────────────────────────────────────────────
-  # Subtitle manager. Downloads subtitles from providers like OpenSubtitles, 
-  # and can auto-sync timing using SubSync/ffsubsync.
-  # Needs write access to media dirs so it can place .srt files alongside videos.
-  bazarr:
-    image: lscr.io/linuxserver/bazarr:latest
-    container_name: bazarr
-    profiles: ["bazarr"]
-    restart: unless-stopped
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Etc/UTC}
-    volumes:
-      - ./bazarr/config:/config
-      - /srv/mergerfs/media/movies:/movies
-      - /srv/mergerfs/media/tv:/tv
-    ports:
-      - "6767:6767"
-
   # ── Filebrowser ────────────────────────────────────────────────────────────
   # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
   # in .env — point it at whatever SMB share OMV exposes (e.g. /srv/mergerfs/media/share).
