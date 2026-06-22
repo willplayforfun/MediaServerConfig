@@ -87,14 +87,14 @@ location /music/ {
     proxy_buffering off;
 }
 
-# ── Calibre-Web ───────────────────────────────────────────────────────────────
+# ── Calibre-Web Automated ─────────────────────────────────────────────────────
 # Calibre-Web has no native base-url setting; it respects X-Script-Name (Flask
 # SCRIPT_NAME convention) for subpath deployment instead.
 location /books {
     return 301 $scheme://$host/books/;
 }
 location /books/ {
-    set $calibreweb_upstream calibreweb;
+    set $calibreweb_upstream calibrewebautomated;
     rewrite ^/books/(.*)$ /$1 break;
     proxy_pass http://$calibreweb_upstream:8083;
 

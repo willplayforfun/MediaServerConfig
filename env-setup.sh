@@ -212,7 +212,7 @@ ask_service navidrome            "Navidrome (music streaming)"               Y
 ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"    Y
 ask_service stash                "Stash (video streaming)"                   N
 ask_service filebrowser          "Filebrowser (web file manager)"            Y
-ask_service calibreweb           "Calibre-Web (ebook library & reader)"      N
+ask_service calibrewebautomated  "Calibre-Web Automated (ebook library & reader)" N
 
 # Add the DNS provider profile so the right DDNS container starts.
 [ "${DNS_PROVIDER}" != "none" ] && PROFILES+=("${DNS_PROVIDER}")

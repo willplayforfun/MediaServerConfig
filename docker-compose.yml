@@ -240,22 +240,23 @@ services:
     ports:
       - "6767:6767"
 
-  # ── Calibre-Web ────────────────────────────────────────────────────────────
-  # Ebook library browser/reader/OPDS server. Reverse-proxied under /books via
-  # the X-Script-Name header (no url_base setting needed in Calibre-Web itself).
-  calibreweb:
-    image: lscr.io/linuxserver/calibre-web:latest
-    container_name: calibreweb
-    profiles: ["calibreweb"]
+  # ── Calibre-Web Automated ──────────────────────────────────────────────────
+  # Ebook library browser/reader/OPDS server with automatic book importing.
+  # Reverse-proxied under /books via the X-Script-Name header (no url_base
+  # setting needed). Drop files into the ingest folder for auto-import.
+  calibrewebautomated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibrewebautomated
+    profiles: ["calibrewebautomated"]
     restart: unless-stopped
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ:-Etc/UTC}
-      - DOCKER_MODS=linuxserver/mods:universal-calibre   # convert/edit metadata (Calibre binaries)
     volumes:
       - ./calibreweb/config:/config
-      - /srv/mergerfs/media/books:/books
+      - /srv/mergerfs/media/books/library:/books
+      - /srv/mergerfs/media/books/ingest:/cwa-book-ingest
     ports:
       - "8083:8083"
 
