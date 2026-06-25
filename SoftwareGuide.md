@@ -180,6 +180,8 @@ This launches all the services.
 Services → SMB/CIFS → Settings. Enable it. Standard options are fine.
 Services → SMB/CIFS → Shares. Add the folders to share. Standard options are fine.
 
+Make sure that your Windows computers trying to access it have the network set as "Private" and not "Public", or they won't be able to discover the server. 
+
 ## Configure SFTP
 
 Create a User Group `sftp-access`. Give Read/Write permission to all relevant media folders. 
