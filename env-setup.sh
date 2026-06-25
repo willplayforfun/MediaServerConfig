@@ -255,6 +255,6 @@ case ",${COMPOSE_PROFILES}," in
 esac
 
 # --- Write .env -------------------------------------------------------------
-FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}"
+FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 write_env "${ENV_FILE}"
