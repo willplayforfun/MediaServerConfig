@@ -284,6 +284,7 @@ services:
       - /dev/dri:/dev/dri    # Quick Sync for MPEG2/H.264 encode
     volumes:
       - ./universalmediaserver/config:/profile
+      - ./universalmediaserver/renderers/DeoVR.conf:/profile/renderers/DeoVR.conf:ro
       - /srv/mergerfs/media/vr:/media:ro
 
   # One-shot. SHARED.conf and UMS.conf are live application state (UMS
