@@ -243,7 +243,9 @@ services:
 
   # ── FileFlows ──────────────────────────────────────────────────────────────
   # Media file processing workflows (transcode, rename, move, etc.).
-  # Set AppBaseUrl so internal links work under the /fileflows subpath.
+  # FileFlows doesn't support being served under an nginx subpath (its SPA
+  # redirects to absolute root paths like /initial-config), so like Bazarr
+  # it's accessed directly via its published port rather than proxied.
   # Hardware encoding via /dev/dri mirrors Jellyfin's Quick Sync setup.
   fileflows:
     image: revenz/fileflows:latest
@@ -256,7 +258,6 @@ services:
       - TZ=${TZ:-Etc/UTC}
       - PUID=1000
       - PGID=1000
-      - AppBaseUrl=/fileflows
     volumes:
       - ./fileflows/data:/app/Data
       - /srv/mergerfs/media:/media
