@@ -39,6 +39,21 @@ In the app, set the server URL to `https://<your-domain>/jellyfin`.
 # Subtitles
 If you have issues with subtitles causing videoplayer crashes, go to User Settings → Subtitles and set "Preferred subtitle mode" to **Only forced** or **None** — this prevents it from using embedded subtitle streams.
 
+## Open Subtitles Plugin
+Jellyfin's built-in subtitle downloader. Installs through the plugin catalog and stores its config in the `./jellyfin/config` volume, so no extra Docker service is needed.
+
+**Install:**
+1. Dashboard → Plugins → Catalog → Subtitles → **Open Subtitles** → Install
+2. Restart Jellyfin (via OMV admin dashboard)
+
+**Configure:**
+1. Dashboard → Plugins → Installed → Open Subtitles → Settings
+2. Enter your [OpenSubtitles.com](https://www.opensubtitles.com) username and password (free account works)
+
+**Download subtitles for a file:**
+- In the library, open a movie or episode → ⋮ menu → **Download Subtitles**
+- Or set automatic downloads: Dashboard → Libraries → (edit a library) → Subtitles → enable "Download missing subtitles" and set preferred language
+
 # Helpful Software
 **Jelly Party** to help synchronize and watch together: https://www.jelly-party.com/
 **tinyMediaManager** to help with renaming, metadata, thumbnails: https://www.tinymediamanager.org/
