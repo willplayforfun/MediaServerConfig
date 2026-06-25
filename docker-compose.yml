@@ -241,6 +241,28 @@ services:
       - ./filebrowser/settings.json:/config/settings.json:ro
       - ./filebrowser/init.sh:/init.sh:ro
 
+  # ── FileFlows ──────────────────────────────────────────────────────────────
+  # Media file processing workflows (transcode, rename, move, etc.).
+  # Set AppBaseUrl so internal links work under the /fileflows subpath.
+  # Hardware encoding via /dev/dri mirrors Jellyfin's Quick Sync setup.
+  fileflows:
+    image: revenz/fileflows:latest
+    container_name: fileflows
+    profiles: ["fileflows"]
+    restart: unless-stopped
+    ports:
+      - "19200:5000"
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - PUID=1000
+      - PGID=1000
+      - AppBaseUrl=/fileflows
+    volumes:
+      - ./fileflows/data:/app/Data
+      - /srv/mergerfs/media:/media
+    devices:
+      - /dev/dri:/dev/dri    # Hardware encoding (optional, mirrors Jellyfin)
+
   # ── Universal Media Server ───────────────────────────────────────────────
   # DLNA/UPnP server. DLNA discovery uses SSDP multicast, 
   # which does not cross Docker's bridge network, so this runs
