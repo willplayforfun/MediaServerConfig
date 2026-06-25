@@ -32,6 +32,7 @@ PLEX_CLAIM=""
 PLEX_HTTPS_PORT="8443"
 FILEBROWSER_ROOT="/srv/mergerfs/media/share"
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
+UMS_NETWORK_INTERFACE=""
 
 EXISTING_ENV=false
 if [ -f "$ENV_FILE" ]; then
@@ -222,6 +223,21 @@ if [ ${#PROFILES[@]} -eq 0 ]; then
 else
     COMPOSE_PROFILES="$(IFS=,; echo "${PROFILES[*]}")"
 fi
+
+# --- UMS network interface (only when enabled) ------------------------------
+case ",${COMPOSE_PROFILES}," in
+    *,universalmediaserver,*)
+        echo
+        echo "Universal Media Server is enabled."
+        echo "  Its DLNA/UPnP discovery must bind to the host's real LAN interface."
+        _detected_iface="$(detect_local_interface)"
+        UMS_NETWORK_INTERFACE="${UMS_NETWORK_INTERFACE:-$_detected_iface}"
+        ask UMS_NETWORK_INTERFACE "  LAN network interface name"
+        while ! interface_exists "${UMS_NETWORK_INTERFACE}"; do
+            read -r -p "  '${UMS_NETWORK_INTERFACE}' was not found on this host (see 'ip addr'). Try again: " UMS_NETWORK_INTERFACE
+        done
+        ;;
+esac
 
 # --- Plex configuration (only when enabled) ---------------------------------
 PLEX_CLAIM="${PLEX_CLAIM:-}"

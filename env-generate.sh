@@ -25,6 +25,7 @@
 #   PLEX_HTTPS_PORT               nginx TLS port for Plex (default: 8443)
 #   FILEBROWSER_ROOT              filebrowser root path (default: /srv/mergerfs/media/share)
 #   INITIAL_FILEBROWSER_PASSWORD  initial filebrowser admin password (default: hellofilebrowser)
+#   UMS_NETWORK_INTERFACE         host LAN interface for UMS's DLNA/UPnP discovery
 #
 # Exit codes:
 #   0  .env written successfully
@@ -103,6 +104,22 @@ INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 
 [[ "$PLEX_HTTPS_PORT" =~ ^[0-9]+$ ]] && (( PLEX_HTTPS_PORT >= 1 && PLEX_HTTPS_PORT <= 65535 )) \
     || fail "PLEX_HTTPS_PORT '${PLEX_HTTPS_PORT}' must be a number between 1 and 65535."
+
+# --- UMS_NETWORK_INTERFACE: auto-detect if not supplied -----------------------
+UMS_NETWORK_INTERFACE="${UMS_NETWORK_INTERFACE:-}"
+case ",${COMPOSE_PROFILES}," in
+    *,universalmediaserver,*)
+        if [ -z "$UMS_NETWORK_INTERFACE" ]; then
+            UMS_NETWORK_INTERFACE="$(detect_local_interface)"
+            [ -n "$UMS_NETWORK_INTERFACE" ] \
+                || fail "Could not auto-detect UMS_NETWORK_INTERFACE. Set it explicitly via the UMS_NETWORK_INTERFACE env var."
+            echo "Auto-detected UMS_NETWORK_INTERFACE: ${UMS_NETWORK_INTERFACE}" >&2
+        else
+            interface_exists "$UMS_NETWORK_INTERFACE" \
+                || fail "UMS_NETWORK_INTERFACE '${UMS_NETWORK_INTERFACE}' was not found on this host."
+        fi
+        ;;
+esac
 
 # --- Write .env --------------------------------------------------------------
 write_env "${ENV_FILE}"

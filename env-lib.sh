@@ -26,10 +26,24 @@ detect_local_ip() {
         | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' || true
 }
 
+# Detects the network interface used to reach the internet, via the kernel
+# routing table. Prints the detected interface name on stdout, or nothing
+# on failure.
+detect_local_interface() {
+    ip -4 route get 1.1.1.1 2>/dev/null \
+        | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' || true
+}
+
+# Checks whether a network interface exists on this host.
+interface_exists() {
+    [ -n "$1" ] && [ -d "/sys/class/net/$1" ]
+}
+
 # Writes .env and prints a summary to stderr.
 # DNS_PROVIDER, DOMAIN, CERTBOT_EMAIL, LOCAL_IP, DNS1, DNS2,
 # COMPOSE_PROFILES, PLEX_CLAIM, PLEX_HTTPS_PORT,
-# FILEBROWSER_ROOT, INITIAL_FILEBROWSER_PASSWORD must be set before calling.
+# FILEBROWSER_ROOT, INITIAL_FILEBROWSER_PASSWORD, UMS_NETWORK_INTERFACE
+# must be set before calling.
 # Provider-specific vars (NOIP_* or CF_API_TOKEN) must also be set when relevant.
 # $1 = destination file path
 write_env() {
@@ -90,6 +104,12 @@ INITIAL_FILEBROWSER_PASSWORD=${INITIAL_FILEBROWSER_PASSWORD}
 # Includes media service profiles (jellyfin, plex, ...) and the DNS provider
 # profile (noip or cloudflare). Edit and re-run 'docker compose up -d' to change.
 COMPOSE_PROFILES=${COMPOSE_PROFILES}
+
+# Universal Media Server
+# Host LAN network interface (e.g. eth0, enp2s0) UMS's DLNA/UPnP discovery
+# binds to. Required so SSDP multicast discovery reaches real LAN/Wi-Fi clients. 
+# Only applied on a fresh UMS profile dir; see UniversalMediaServerSetupGuide.md.
+UMS_NETWORK_INTERFACE=${UMS_NETWORK_INTERFACE}
 
 # Plex
 # One-time claim token from https://www.plex.tv/claim (only for first setup).

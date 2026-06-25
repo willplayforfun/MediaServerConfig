@@ -272,14 +272,40 @@ services:
     image: universalmediaserver/ums:latest
     container_name: universalmediaserver
     profiles: ["universalmediaserver"]
+    depends_on:
+      universalmediaserver-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     network_mode: host
     environment:
       # Tells UMS to read/write UMS.conf and its database under /profile.
       - UMS_PROFILE=/profile
+    devices:
+      - /dev/dri:/dev/dri    # Quick Sync for MPEG2/H.264 encode
     volumes:
       - ./universalmediaserver/config:/profile
       - /srv/mergerfs/media/vr:/media:ro
+
+  # One-shot. SHARED.conf and UMS.conf are live application state (UMS
+  # rewrites them as settings change), so they get seeded in on first run.
+  universalmediaserver-init:
+    image: alpine:latest
+    container_name: universalmediaserver-init
+    profiles: ["universalmediaserver"]
+    environment:
+      - UMS_NETWORK_INTERFACE=${UMS_NETWORK_INTERFACE}
+    volumes:
+      - ./universalmediaserver/SHARED.conf:/seed/SHARED.conf:ro
+      - ./universalmediaserver/config:/profile
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cp -n /seed/SHARED.conf /profile/SHARED.conf
+        if [ ! -f /profile/UMS.conf ] && [ -n "$$UMS_NETWORK_INTERFACE" ]; then
+          printf 'network_interface = %s\n' "$$UMS_NETWORK_INTERFACE" > /profile/UMS.conf
+        fi
+    restart: "no"
 
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:
