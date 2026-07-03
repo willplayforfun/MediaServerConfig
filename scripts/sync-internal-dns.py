@@ -94,7 +94,13 @@ class OPNsenseAdapter(Adapter):
     RECONFIGURE = "/api/unbound/service/reconfigure"
 
     def __init__(self):
-        self.base = require_env("OPNSENSE_URL").rstrip("/")
+        base = require_env("OPNSENSE_URL").rstrip("/")
+        # A bare host ("router.internal") is a valid answer to the setup prompt,
+        # but urllib rejects scheme-less URLs; default to https, the OPNsense
+        # web UI's own default.
+        if "://" not in base:
+            base = "https://" + base
+        self.base = base
         key = require_env("OPNSENSE_API_KEY")
         secret = require_env("OPNSENSE_API_SECRET")
         import base64
