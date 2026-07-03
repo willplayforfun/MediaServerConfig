@@ -262,6 +262,8 @@ In this case, you set up a DNS override on the router itself, essentially saying
 
 This stack includes the ability to automatically configure split horizon DNS; currently only routers running OPNsense are supported. You can choose the "automatic configuration" option under the "Local DNS" section when running `env-setup.sh`. 
 
+The problem with this (and using the router as DNS) is that many browsers will tend to use DNS over HTTPS (DoH), which bypasses the suggested DNS server and uses one from the Internet. This means our custom DNS overrides are skipped. You can solve this by disabling DoH in your browser, or adding the domain as an exception. Unfortunately this must be performed for each browser separately.
+
 #### OPNsense automatic configuration
 
 Setup:
