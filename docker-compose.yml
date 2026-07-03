@@ -350,3 +350,29 @@ services:
       - DNS2=${DNS2}
     volumes:
       - ./dnsmasq-rendered:/etc/dnsmasq.d:ro
+
+  # ── Internal DNS sync (router host override) ───────────────────────────────
+  # One-shot. Pushes a ${DOMAIN} -> ${LOCAL_IP} host-override record to the
+  # router's own DNS resolver (OPNsense/Unbound via API).
+  # Runs to completion on every `up`. Exits 0 immediately when
+  # INTERNAL_DNS_ADAPTER is unset, so it is inert until configured.
+  internal-dns-init:
+    image: python:3.13-alpine
+    container_name: internal-dns-init
+    restart: "no"
+    # Pure stdlib Python — no pip install step needed.
+    command: ["python3", "/scripts/sync-internal-dns.py"]
+    environment:
+      - DOMAIN=${DOMAIN}
+      - LOCAL_IP=${LOCAL_IP}
+      - INTERNAL_DNS_ADAPTER=${INTERNAL_DNS_ADAPTER:-}
+      - DNS_CLEANUP=${DNS_CLEANUP:-true}
+      - INTERNAL_DNS_MARKER=${INTERNAL_DNS_MARKER:-}
+      - DRY_RUN=${DRY_RUN:-}
+      # OPNsense adapter properties
+      - OPNSENSE_URL=${OPNSENSE_URL:-}
+      - OPNSENSE_API_KEY=${OPNSENSE_API_KEY:-}
+      - OPNSENSE_API_SECRET=${OPNSENSE_API_SECRET:-}
+      - OPNSENSE_TLS_VERIFY=${OPNSENSE_TLS_VERIFY:-false}
+    volumes:
+      - ./scripts/sync-internal-dns.py:/scripts/sync-internal-dns.py:ro

@@ -21,6 +21,10 @@
 #   LOCAL_IP                      server LAN IP; auto-detected if empty
 #   DNS1                          upstream DNS 1  (default: 1.1.1.1)
 #   DNS2                          upstream DNS 2  (default: 8.8.8.8)
+#   INTERNAL_DNS_ADAPTER          router host-override sync: none | opnsense
+#                                 (default: none; see scripts/sync-internal-dns.py)
+#     INTERNAL_DNS_ADAPTER=opnsense requires: OPNSENSE_URL, OPNSENSE_API_KEY,
+#     OPNSENSE_API_SECRET; optional OPNSENSE_TLS_VERIFY (default: false)
 #   PLEX_CLAIM                    claim token from plex.tv/claim (default: empty)
 #   PLEX_HTTPS_PORT               nginx TLS port for Plex (default: 8443)
 #   FILEBROWSER_ROOT              filebrowser root path (default: /srv/mergerfs/media/share)
@@ -76,6 +80,31 @@ case "${DNS_PROVIDER}" in
         ;;
     *)
         fail "DNS_PROVIDER must be 'none', 'noip', or 'cloudflare'. Got: '${DNS_PROVIDER}'."
+        ;;
+esac
+
+# --- Internal DNS adapter (router host override) ------------------------------
+INTERNAL_DNS_ADAPTER="${INTERNAL_DNS_ADAPTER:-}"
+OPNSENSE_URL="${OPNSENSE_URL:-}"
+OPNSENSE_API_KEY="${OPNSENSE_API_KEY:-}"
+OPNSENSE_API_SECRET="${OPNSENSE_API_SECRET:-}"
+OPNSENSE_TLS_VERIFY="${OPNSENSE_TLS_VERIFY:-false}"
+
+case "${INTERNAL_DNS_ADAPTER}" in
+    "" | none)
+        INTERNAL_DNS_ADAPTER=""
+        ;;
+    opnsense)
+        [ -n "$OPNSENSE_URL" ]        || fail "OPNSENSE_URL is required when INTERNAL_DNS_ADAPTER=opnsense."
+        [ -n "$OPNSENSE_API_KEY" ]    || fail "OPNSENSE_API_KEY is required when INTERNAL_DNS_ADAPTER=opnsense."
+        [ -n "$OPNSENSE_API_SECRET" ] || fail "OPNSENSE_API_SECRET is required when INTERNAL_DNS_ADAPTER=opnsense."
+        case "${OPNSENSE_TLS_VERIFY}" in
+            true|false) ;;
+            *) fail "OPNSENSE_TLS_VERIFY must be 'true' or 'false'. Got: '${OPNSENSE_TLS_VERIFY}'." ;;
+        esac
+        ;;
+    *)
+        fail "INTERNAL_DNS_ADAPTER must be 'none' or 'opnsense'. Got: '${INTERNAL_DNS_ADAPTER}'."
         ;;
 esac
 

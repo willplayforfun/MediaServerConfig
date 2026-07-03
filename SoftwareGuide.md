@@ -237,12 +237,42 @@ On your router, forward these ports to your server:
 
 Restart the server at this point. Otherwise, the TLS certificates won't be created.
 
-## Configure dnsmasq
-Dnsmasq runs as part of the Docker stack, but you must set the "Primary DNS Server" in your router's config to the internal IP of your server. 
+## Configure local DNS
+Currently `<your-domain>` will not be reacahble from inside your own network.
 
-NOTE: It is important that your router never re-assign the IP of the server when using dnsmasq. Make sure to assign the server a static IP.
+Your options are:
+- Enable "Hairpin NAT" on your router
+- Point your router at the server as the DNS server
+- Configure "Split Horizon" DNS on your router
 
-NOTE: without this step or without supporting Hairpin NAT on your router, your server can only be accessed by `<server-ip>` within your home network, not by `<your-domain>`.
+These are not always configurable. For example, a router from your internet provider may not expose any of these options. The best option in such a case is to set up your own router that provides you with more freedom. See [RouterGuide.md] for more details.
+
+Without one of these, your server can only be accessed by `<server-ip>` within your home network, not by `<your-domain>`.
+
+### Enabling Hairpin NAT
+This allows your router to "send traffic to itself". Enable it and you're good to go!
+
+### Use the server as the router's DNS
+The server stack runs dnsmasq, so you can configure your router's "Primary DNS Server" to use the server's local IP.
+
+NOTE: with this option the server becomes the DNS server for your whole network — name resolution on the network will not work while the server is down.
+
+### Configuring Split Horizon DNS
+In this case, you set up a DNS override on the router itself, essentially saying that if it sees `<your-domain>`, it should immediately route to `<server-ip>` instead of going out to the internet.
+
+This stack includes the ability to automatically configure split horizon DNS; currently only routers running OPNsense are supported. You can choose the "automatic configuration" option under the "Local DNS" section when running `env-setup.sh`. 
+
+#### OPNsense automatic configuration
+
+Setup:
+- On the router web UI, create an API key: System → Access → Users → (your user) → Ticket icon ("Create and download API keys"). 
+    - Save the text file, open it, and copy out the secret and key.
+- The user account needs these privileges: 
+    - "Services: Unbound DNS"
+    - "Services: Unbound DNS: Access Lists"
+    - "Services: Unbound DNS: Edit Host and Domain Override"
+    - "Services: Unbound DNS: General". The user needs the Unbound host-override and service-reconfigure privileges.
+- Run `./env-setup.sh` and enter the router IP, API key, and API secret at the "Local DNS" step.
 
 # Service Setup
 

@@ -86,6 +86,8 @@ While you could connect by typing in the IP address assigned by your internet se
 For security purposes, I recommend not exposing the admin UIs (OMV's workbench and Nginx Proxy Manager) to the internet. Although they are secured by a username and password, the risk is very high if that ever gets compromised.
 
 ### Local DNS
-Once you are used to accessing your server by typing in a domain, it is convenient to have that work on your home network. However, some routers don't support "hairpin NATs", which just means that it can't send outgoing packets to itself. The solution is to take the router out of the equation - host a local DNS server (using [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)) that can reroute your domain name to the server's internal network IP, rather than your public IP.
+Once you are used to accessing your server by typing in a domain, it is convenient to have that work on your home network. However, some routers don't support "hairpin NATs", which just means that it can't send outgoing packets to itself. 
 
+One solution is to take the router out of the equation - host a local DNS server (using [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html)) that can reroute your domain name to the server's internal network IP, rather than your public IP. This stack automatically hosts a `dnsmasq` server. 
 
+Another solution is "split horizon" DNS, where the router itself contains overrides for the server's domain name, and knows to route that internally to the server IP. This stack contains a startup script that can automatically configure split horizon on routers running OPNsense.

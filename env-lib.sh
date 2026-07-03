@@ -44,7 +44,8 @@ interface_exists() {
 # COMPOSE_PROFILES, PLEX_CLAIM, PLEX_HTTPS_PORT,
 # FILEBROWSER_ROOT, INITIAL_FILEBROWSER_PASSWORD, UMS_NETWORK_INTERFACE
 # must be set before calling.
-# Provider-specific vars (NOIP_* or CF_API_TOKEN) must also be set when relevant.
+# Provider-specific vars (NOIP_* or CF_API_TOKEN) must also be set when relevant,
+# as must OPNSENSE_* when INTERNAL_DNS_ADAPTER=opnsense.
 # $1 = destination file path
 write_env() {
     local env_file="$1"
@@ -95,6 +96,24 @@ LOCAL_IP=${LOCAL_IP}
 DNS1=${DNS1}
 DNS2=${DNS2}
 
+EOF
+
+    case "${INTERNAL_DNS_ADAPTER:-}" in
+        opnsense)
+            cat >> "${env_file}" <<EOF
+# Internal DNS sync: internal-dns-init pushes a ${DOMAIN} -> ${LOCAL_IP} host
+# override to the router's resolver on each 'up' (scripts/sync-internal-dns.py).
+INTERNAL_DNS_ADAPTER=${INTERNAL_DNS_ADAPTER}
+OPNSENSE_URL=${OPNSENSE_URL}
+OPNSENSE_API_KEY=${OPNSENSE_API_KEY}
+OPNSENSE_API_SECRET=${OPNSENSE_API_SECRET}
+OPNSENSE_TLS_VERIFY=${OPNSENSE_TLS_VERIFY}
+
+EOF
+            ;;
+    esac
+
+    cat >> "${env_file}" <<EOF
 # The root directory for the filebrowser web UI
 FILEBROWSER_ROOT=${FILEBROWSER_ROOT}
 # Initial password for Filebrowser admin
@@ -124,6 +143,9 @@ EOF
     echo "Public URL:       https://${DOMAIN}" >&2
     echo "LAN IP:           ${LOCAL_IP}" >&2
     echo "DNS provider:     ${DNS_PROVIDER}" >&2
+    if [ -n "${INTERNAL_DNS_ADAPTER:-}" ]; then
+        echo "Router DNS sync:  ${INTERNAL_DNS_ADAPTER}" >&2
+    fi
     echo "Enabled services: ${COMPOSE_PROFILES:-<none>}" >&2
     case ",${COMPOSE_PROFILES}," in
         *,plex,*) echo "Plex URL:         https://${DOMAIN}:${PLEX_HTTPS_PORT}/web" >&2 ;;

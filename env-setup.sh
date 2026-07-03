@@ -33,6 +33,11 @@ PLEX_HTTPS_PORT="8443"
 FILEBROWSER_ROOT="/srv/mergerfs/media/share"
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
 UMS_NETWORK_INTERFACE=""
+INTERNAL_DNS_ADAPTER=""
+OPNSENSE_URL=""
+OPNSENSE_API_KEY=""
+OPNSENSE_API_SECRET=""
+OPNSENSE_TLS_VERIFY="false"
 
 EXISTING_ENV=false
 if [ -f "$ENV_FILE" ]; then
@@ -177,6 +182,59 @@ while true; do
     fi
     break
 done
+
+# --- Internal DNS (router host override) -------------------------------------
+echo
+echo "Local DNS: how LAN clients resolve ${DOMAIN} to ${LOCAL_IP} (see README):"
+echo "  1) Manual configuration"
+echo "  2) Automatic configuration: OPNsense"
+
+case "${INTERNAL_DNS_ADAPTER}" in
+    opnsense) _idns_default=2 ;;
+    *)        _idns_default=1 ;;
+esac
+read -r -p "Select [1/2] [${_idns_default}]: " IDNS_CHOICE
+IDNS_CHOICE="${IDNS_CHOICE:-${_idns_default}}"
+while [[ ! "${IDNS_CHOICE}" =~ ^[12]$ ]]; do
+    read -r -p "  Please enter 1 or 2: " IDNS_CHOICE
+done
+
+if [ "${IDNS_CHOICE}" = "2" ]; then
+    INTERNAL_DNS_ADAPTER="opnsense"
+    echo " API key + secret: create under System > Access > Users > (user) > Ticket icon ("Create and download API keys"). "
+    echo " The account needs these privileges:  "
+    echo " - Services: Unbound DNS' "
+    echo " - Services: Unbound DNS: Access Lists' "
+    echo " - Services: Unbound DNS: Edit Host and Domain Override' "
+    echo " - Services: Unbound DNS: General' "
+
+    ask OPNSENSE_URL "  OPNsense web UI URL (e.g. https://192.168.1.1)"
+    while [ -z "${OPNSENSE_URL}" ]; do
+        read -r -p "  URL cannot be empty. Try again: " OPNSENSE_URL
+    done
+
+    ask OPNSENSE_API_KEY "  OPNsense API key"
+    while [ -z "${OPNSENSE_API_KEY}" ]; do
+        read -r -p "  API key cannot be empty. Try again: " OPNSENSE_API_KEY
+    done
+
+    ask OPNSENSE_API_SECRET "  OPNsense API secret"
+    while [ -z "${OPNSENSE_API_SECRET}" ]; do
+        read -r -p "  API secret cannot be empty. Try again: " OPNSENSE_API_SECRET
+    done
+
+    _tls_def="N"
+    [ "${OPNSENSE_TLS_VERIFY}" = "true" ] && _tls_def="Y"
+    if [ "${_tls_def}" = "Y" ]; then _tls_prompt="[Y/n]"; else _tls_prompt="[y/N]"; fi
+    read -r -p "  Verify the router's TLS certificate? (N for self-signed) ${_tls_prompt} " _tls_ans
+    _tls_ans="${_tls_ans:-${_tls_def}}"
+    case "${_tls_ans}" in
+        [yY]|[yY][eE][sS]) OPNSENSE_TLS_VERIFY="true" ;;
+        *)                 OPNSENSE_TLS_VERIFY="false" ;;
+    esac
+else
+    INTERNAL_DNS_ADAPTER=""
+fi
 
 # --- DNS1 / DNS2 ------------------------------------------------------------
 DNS1="${DNS1:-1.1.1.1}"
