@@ -27,3 +27,12 @@ In the settings menu, it can be nice to enable:
 - Metadata Providers -> Installed Scrapers
     - Add sources to pull metadata relevant to your videos
 - Security -> Maximum session age to something like 604800
+
+### JavaScript / CDP Scrapers
+
+Some community scrapers need a real browser to render pages. This is handled by a headless Chrome container.
+
+In Stash, set **Settings -> System -> Scraping -> Chrome CDP Path** to:
+```
+http://172.28.1.10:9222/json/version
+```

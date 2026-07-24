@@ -211,6 +211,9 @@ services:
       - STASH_METADATA=/metadata/
       - STASH_CACHE=/cache/
       - STASH_PORT=9999
+    networks:
+      default: {}
+      stash-chrome-net: {}
     volumes:
       - /srv/mergerfs/media/extra/media:/data/media
       - /etc/localtime:/etc/localtime:ro
@@ -219,6 +222,30 @@ services:
       - ./stash/cache:/cache
       - ./stash/blobs:/blobs
       - ./stash/generated:/generated
+
+  # ── Stash Chrome (headless, for CDP-based scrapers) ───────────────────────
+  # Sidecar so JS-driven scrapers (useCDP: true in CommunityScrapers) have a
+  # real browser to render pages with, without baking Chromium into the Stash
+  # image. Must run with its default entrypoint (no command override) — the
+  # image's own socat proxy is what makes port 9222 reachable from outside
+  # the container; Chromium itself only ever binds CDP to loopback.
+  #
+  # Chrome's DevTools HTTP handler rejects any request whose Host header
+  # isn't a literal IP or "localhost" (anti-DNS-rebinding hardening, no
+  # override flag exists), so a service-name hostname will NOT work here —
+  # it needs the static IP below.
+  # In Stash: Settings -> System -> Scraping -> Chrome CDP Path ->
+  #   http://172.28.1.10:9222/json/version
+  stash-chrome:
+    image: chromedp/headless-shell:latest
+    container_name: stash-chrome
+    profiles: ["stash"]
+    restart: unless-stopped
+    shm_size: "2gb"
+    init: true
+    networks:
+      stash-chrome-net:
+        ipv4_address: 172.28.1.10
 
   # ── Filebrowser ────────────────────────────────────────────────────────────
   # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
@@ -376,3 +403,13 @@ services:
       - OPNSENSE_TLS_VERIFY=${OPNSENSE_TLS_VERIFY:-false}
     volumes:
       - ./scripts/sync-internal-dns.py:/scripts/sync-internal-dns.py:ro
+
+# ── Networks ───────────────────────────────────────────────────────────────
+networks:
+  # Fixed subnet so stash-chrome gets a stable IP (see comment on that
+  # service) — Chrome's CDP HTTP handler only accepts a literal IP or
+  # "localhost" as the Host header, so it can't be reached by service name.
+  stash-chrome-net:
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24
