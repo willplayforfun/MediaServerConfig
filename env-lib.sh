@@ -153,4 +153,7 @@ EOF
     case ",${COMPOSE_PROFILES}," in
         *,universalmediaserver,*) echo "UMS admin (LAN):  http://${LOCAL_IP}:9001" >&2 ;;
     esac
+    case ",${COMPOSE_PROFILES}," in
+        *,kodi,*) echo "Kodi web UI (LAN): http://${LOCAL_IP}:8080" >&2 ;;
+    esac
 }

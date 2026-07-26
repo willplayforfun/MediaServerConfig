@@ -271,6 +271,7 @@ ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"    Y
 ask_service stash                "Stash (video streaming)"                   N
 ask_service filebrowser          "Filebrowser (web file manager)"            Y
 ask_service fileflows            "FileFlows (media file processing workflows)"    N
+ask_service kodi                 "Kodi (HDMI-attached media center, DRM/KMS)" N
 
 # Add the DNS provider profile so the right DDNS container starts.
 [ "${DNS_PROVIDER}" != "none" ] && PROFILES+=("${DNS_PROVIDER}")

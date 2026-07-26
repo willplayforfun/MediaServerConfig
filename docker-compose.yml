@@ -335,6 +335,39 @@ services:
         fi
     restart: "no"
 
+  # ── Kodi ───────────────────────────────────────────────────────────────────
+  # Media center front-end, rendering directly to the HDMI output via the GBM
+  # windowing system (DRM/KMS) - no X11/Wayland session involved, so this runs
+  # straight from a TTY-equivalent context inside the container. Needs the DRI
+  # node for GPU/VAAPI rendering on the Intel iGPU, the snd node for ALSA
+  # audio, and the input node for a locally attached keyboard/remote.
+  # `init: true` is required so PID 1 reaps subprocesses correctly under GBM.
+  # The default kodi-gbm entrypoint launches Kodi's X11 build; overriding the
+  # command to kodi-gbm selects the DRM/KMS build instead.
+  kodi:
+    image: nordewal/kodi-gbm:latest
+    container_name: kodi
+    profiles: ["kodi"]
+    restart: unless-stopped
+    init: true
+    command: /usr/lib/kodi/kodi-gbm
+    devices:
+      - /dev/dri:/dev/dri       # Intel iGPU (VAAPI render + DRM/KMS display)
+      - /dev/snd:/dev/snd       # ALSA audio out
+      - /dev/input:/dev/input   # local keyboard/remote
+    group_add:
+      - video
+    ports:
+      - "8080:8080"    # Kodi web interface
+      - "9090:9090"    # JSON-RPC control (Kore and other remotes)
+      - "9777:9777/udp" # EventServer (legacy remotes)
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./kodi/config:/root/.kodi
+      - /srv/mergerfs/media/movies:/media/movies:ro
+      - /srv/mergerfs/media/tv:/media/tv:ro
+      - /srv/mergerfs/media/music:/media/music:ro
+
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:
     image: noipcom/noip-duc:latest
