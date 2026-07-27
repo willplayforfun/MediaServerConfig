@@ -366,6 +366,13 @@ services:
       - "9777:9777/udp" # EventServer (legacy remotes)
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      # Kodi's GBM build reads input through libinput, which classifies
+      # /dev/input event nodes (keyboard vs. remote vs. mouse) via udev
+      # device properties rather than the raw nodes alone - without the
+      # host's live udev database mounted in, libinput enumerates zero
+      # devices and no HID input reaches Kodi even though /dev/input is
+      # passed through below.
+      - /run/udev:/run/udev:ro
       - ./kodi/config:/root/.kodi
       - /srv/mergerfs/media/movies:/media/movies:ro
       - /srv/mergerfs/media/tv:/media/tv:ro
