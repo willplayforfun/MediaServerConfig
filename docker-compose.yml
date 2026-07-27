@@ -342,15 +342,18 @@ services:
   # node for GPU/VAAPI rendering on the Intel iGPU, the snd node for ALSA
   # audio, and the input node for a locally attached keyboard/remote.
   # `init: true` is required so PID 1 reaps subprocesses correctly under GBM.
-  # The default kodi-gbm entrypoint launches Kodi's X11 build; overriding the
-  # command to kodi-gbm selects the DRM/KMS build instead.
+  # Kodi 21+ ships one binary for all windowing back ends (the image's default
+  # CMD targets an older separate kodi-gbm binary that no longer exists), so
+  # --windowing=gbm is what actually selects DRM/KMS output; --standalone
+  # skips the login/profile screen for an appliance-style boot straight into
+  # the home screen.
   kodi:
     image: nordewal/kodi-gbm:latest
     container_name: kodi
     profiles: ["kodi"]
     restart: unless-stopped
     init: true
-    command: /usr/lib/kodi/kodi-gbm
+    command: ["/usr/bin/kodi-standalone", "--windowing=gbm"]
     devices:
       - /dev/dri:/dev/dri       # Intel iGPU (VAAPI render + DRM/KMS display)
       - /dev/snd:/dev/snd       # ALSA audio out
