@@ -348,7 +348,11 @@ services:
   # skips the login/profile screen for an appliance-style boot straight into
   # the home screen.
   kodi:
-    image: nordewal/kodi-gbm:latest
+    build:
+      context: ./kodi
+      dockerfile: Dockerfile
+    image: homeserver-kodi:local
+    pull_policy: never
     container_name: kodi
     profiles: ["kodi"]
     restart: unless-stopped
