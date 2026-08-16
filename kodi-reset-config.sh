@@ -1,8 +1,14 @@
 #!/bin/bash
 # kodi-reset-config.sh
-# Wipes kodi/config/ (bind-mounted to /root/.kodi, gitignored) so Kodi's
-# first-run wizard runs again on next start - useful for repeatedly testing
-# first-time setup without a stale profile getting in the way.
+# Wipes kodi/config/ (bind-mounted to /root/.kodi, gitignored) so Kodi comes
+# back up with a completely default profile - no interactive wizard to
+# reset here (modern Kodi doesn't have one; it just boots straight to the
+# default Estuary home screen), so this is for wiping out custom settings,
+# addons, or a broken profile rather than "testing setup."
+#
+# This also deletes the seeded YouTube favourite (kodi/config/userdata/
+# favourites.xml) - re-run kodi-add-youtube-favourite.sh afterward if you
+# want it back.
 #
 # Stops the kodi container first if it's running, since Kodi holds files
 # open under kodi/config/ and may write to it during shutdown.
@@ -35,4 +41,5 @@ if [[ ! "$confirm_ans" =~ ^[Yy] ]]; then
 fi
 
 rm -rf "$CONFIG_DIR"
-echo "[kodi-reset-config] Deleted $CONFIG_DIR. Next 'docker compose --profile kodi up' will show the first-run wizard again."
+echo "[kodi-reset-config] Deleted $CONFIG_DIR. Next start will come up with Kodi's stock defaults."
+echo "[kodi-reset-config] Run kodi-add-youtube-favourite.sh to restore the YouTube launcher favourite."

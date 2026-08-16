@@ -361,6 +361,16 @@ FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 write_env "${ENV_FILE}"
 
+# --- Seed the YouTube favourite (only when Kodi is enabled) ------------------
+# Kodi has no first-run wizard to hang this on, so it's written directly
+# into favourites.xml instead of requiring it to be typed in through Kodi's
+# on-screen keyboard. Idempotent - safe to run every time env-setup.sh runs.
+case ",${COMPOSE_PROFILES}," in
+    *,kodi,*)
+        bash "${SCRIPT_DIR}/kodi-add-youtube-favourite.sh"
+        ;;
+esac
+
 # --- Create kodi-apps containers (only when Kodi is enabled) ----------------
 # youtube-tv (and any future switchable TV app) lives in the "kodi-apps"
 # profile specifically so a plain `docker compose up` never starts it - see
