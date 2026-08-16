@@ -36,18 +36,30 @@ if [ ! -d "$DEBUGFS_DRI" ]; then
     exit 1
 fi
 
-shopt -s nullglob
-files=("$EDID_DIR"/*.bin)
-shopt -u nullglob
+# Finds the debugfs connector directory for a given sysfs-style connector
+# name (e.g. HDMI-A-1), if the kernel currently exposes one.
+find_connector_dir() {
+    local name="$1" card_dir
+    for card_dir in "$DEBUGFS_DRI"/*/; do
+        if [ -e "${card_dir}${name}/edid_override" ]; then
+            echo "${card_dir}${name}"
+            return 0
+        fi
+    done
+    return 1
+}
 
-if [ ${#files[@]} -eq 0 ]; then
-    echo "[kodi-edid-setup] No .bin files in $EDID_DIR. Nothing to do."
-    exit 0
-fi
+# Forces a redetect so a just-written edid_override (or a just-cleared one)
+# is picked up immediately instead of waiting for a real hotplug event.
+force_redetect() {
+    local connector_dir="$1"
+    echo off > "${connector_dir}/force" 2>/dev/null || true
+    echo on  > "${connector_dir}/force" 2>/dev/null || true
+}
 
 # Scan real connectors (sysfs, not debugfs - sysfs has the human-readable
 # status). Strip the "cardN-" prefix so names match the debugfs layout used
-# below (/sys/kernel/debug/dri/<N>/<connector>/), e.g. card0-HDMI-A-1 -> HDMI-A-1.
+# above (/sys/kernel/debug/dri/<N>/<connector>/), e.g. card0-HDMI-A-1 -> HDMI-A-1.
 conn_names=()
 conn_status=()
 for d in /sys/class/drm/card*-*/; do
@@ -67,6 +79,30 @@ for i in "${!conn_names[@]}"; do
     printf "  %d) %s (%s)\n" "$((i + 1))" "${conn_names[$i]}" "${conn_status[$i]}"
 done
 
+echo
+read -r -p "Clear all existing EDID overrides before continuing? [y/N] " clear_ans
+if [[ "$clear_ans" =~ ^[Yy] ]]; then
+    for name in "${conn_names[@]}"; do
+        if connector_dir="$(find_connector_dir "$name")"; then
+            echo "[kodi-edid-setup] Clearing override on $name"
+            # An empty write resets edid_override, reverting the connector
+            # to reading its real EDID again.
+            : > "${connector_dir}/edid_override"
+            force_redetect "$connector_dir"
+        fi
+    done
+    echo "[kodi-edid-setup] All overrides cleared."
+fi
+
+shopt -s nullglob
+files=("$EDID_DIR"/*.bin)
+shopt -u nullglob
+
+if [ ${#files[@]} -eq 0 ]; then
+    echo "[kodi-edid-setup] No .bin files in $EDID_DIR. Nothing more to do."
+    exit 0
+fi
+
 for f in "${files[@]}"; do
     echo
     echo "[kodi-edid-setup] File: $(basename "$f")"
@@ -83,28 +119,12 @@ for f in "${files[@]}"; do
     fi
 
     name="${conn_names[$((choice - 1))]}"
-    applied=0
 
-    for card_dir in "$DEBUGFS_DRI"/*/; do
-        connector_dir="${card_dir}${name}"
-        override="${connector_dir}/edid_override"
-        force="${connector_dir}/force"
-
-        if [ -e "$override" ]; then
-            echo "  Applying $(basename "$f") -> $override"
-            cat "$f" > "$override"
-
-            # edid_override only takes effect on the next detect cycle, so
-            # force one now instead of waiting for a real hotplug event.
-            echo off > "$force" 2>/dev/null || true
-            echo on  > "$force" 2>/dev/null || true
-
-            applied=1
-            break
-        fi
-    done
-
-    if [ "$applied" -eq 0 ]; then
+    if connector_dir="$(find_connector_dir "$name")"; then
+        echo "  Applying $(basename "$f") -> ${connector_dir}/edid_override"
+        cat "$f" > "${connector_dir}/edid_override"
+        force_redetect "$connector_dir"
+    else
         echo "  WARNING: '$name' has no matching entry under $DEBUGFS_DRI (debugfs and sysfs connector names normally match - if they don't here, something's unusual)." >&2
     fi
 done
