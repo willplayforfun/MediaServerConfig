@@ -62,10 +62,10 @@ services:
     init: true
     environment:
       - SWITCHER_URL=http://switcher:8099/switch/kodi
-      # Placeholders - see switcher/youtube-tv/watcher.py for how to find
-      # the real values once the remote is on hand.
-      - REMOTE_DEVICE=
-      - RETURN_KEY=KEY_HOMEPAGE
+      # Set by env-setup.sh (device picked from a list, key typed in after
+      # running evtest) - see switcher/youtube-tv/watcher.py for background.
+      - REMOTE_DEVICE=${REMOTE_DEVICE}
+      - RETURN_KEY=${RETURN_KEY:-KEY_HOMEPAGE}
     devices:
       - /dev/dri:/dev/dri
       - /dev/snd:/dev/snd

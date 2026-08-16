@@ -33,6 +33,8 @@ PLEX_HTTPS_PORT="8443"
 FILEBROWSER_ROOT="/srv/mergerfs/media/share"
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
 UMS_NETWORK_INTERFACE=""
+REMOTE_DEVICE=""
+RETURN_KEY="KEY_HOMEPAGE"
 INTERNAL_DNS_ADAPTER=""
 OPNSENSE_URL=""
 OPNSENSE_API_KEY=""
@@ -310,6 +312,47 @@ case ",${COMPOSE_PROFILES}," in
         ask PLEX_HTTPS_PORT "  HTTPS port"
         PLEX_HTTPS_PORT="${PLEX_HTTPS_PORT:-8443}"
         echo "  Remember to forward external port ${PLEX_HTTPS_PORT} for remote access."
+        ;;
+esac
+
+# --- Remote control (only when Kodi is enabled) ------------------------------
+case ",${COMPOSE_PROFILES}," in
+    *,kodi,*)
+        echo
+        echo "Kodi is enabled. The switcher's kiosk TV apps (e.g. youtube-tv) need"
+        echo "to know which input device is the remote, and the key its dedicated"
+        echo "'return to Kodi' button sends (see OperationsGuide.md)."
+        echo "If you haven't identified the button yet, run 'sudo evtest' in"
+        echo "another terminal first."
+        echo
+
+        shopt -s nullglob
+        _remote_candidates=(/dev/input/by-id/*-event-*)
+        shopt -u nullglob
+
+        if [ ${#_remote_candidates[@]} -eq 0 ]; then
+            echo "  No devices found under /dev/input/by-id/. Leaving REMOTE_DEVICE blank -"
+            echo "  set it manually in .env once the remote is plugged in."
+        else
+            echo "  Available input devices:"
+            _default_idx=""
+            for i in "${!_remote_candidates[@]}"; do
+                _marker=""
+                [ "${_remote_candidates[$i]}" = "${REMOTE_DEVICE}" ] && { _marker=" (current)"; _default_idx=$((i + 1)); }
+                printf "    %d) %s%s\n" "$((i + 1))" "${_remote_candidates[$i]}" "${_marker}"
+            done
+            read -r -p "  Select the remote's device [${_default_idx:-1}]: " _dev_choice
+            _dev_choice="${_dev_choice:-${_default_idx:-1}}"
+            while ! [[ "$_dev_choice" =~ ^[0-9]+$ ]] || [ "$_dev_choice" -lt 1 ] || [ "$_dev_choice" -gt ${#_remote_candidates[@]} ]; do
+                read -r -p "  Please enter a number between 1 and ${#_remote_candidates[@]}: " _dev_choice
+            done
+            REMOTE_DEVICE="${_remote_candidates[$((_dev_choice - 1))]}"
+        fi
+
+        ask RETURN_KEY "  Key name evtest reported for the 'return to Kodi' button"
+        while [ -z "${RETURN_KEY}" ]; do
+            read -r -p "  Key name cannot be empty. Try again: " RETURN_KEY
+        done
         ;;
 esac
 
