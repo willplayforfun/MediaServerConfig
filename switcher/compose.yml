@@ -20,7 +20,10 @@ services:
   # default network, never from the LAN.
   switcher:
     build:
-      context: ./switcher
+      # Relative to this file (switcher/compose.yml), not the root
+      # docker-compose.yml that includes it - Compose's `include:` resolves
+      # relative paths against the included file's own directory.
+      context: .
       dockerfile: Dockerfile
     image: homeserver-switcher:local
     pull_policy: never
@@ -52,7 +55,7 @@ services:
   #   docker compose --profile kodi up -d kodi switcher
   youtube-tv:
     build:
-      context: ./switcher/youtube-tv
+      context: ./youtube-tv
       dockerfile: Dockerfile
     image: homeserver-youtube-tv:local
     pull_policy: never
