@@ -360,3 +360,32 @@ esac
 FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 write_env "${ENV_FILE}"
+
+# --- Create kodi-apps containers (only when Kodi is enabled) ----------------
+# youtube-tv (and any future switchable TV app) lives in the "kodi-apps"
+# profile specifically so a plain `docker compose up` never starts it - see
+# OperationsGuide.md. It still has to be created (not started) once so the
+# switcher has a container to start on demand.
+case ",${COMPOSE_PROFILES}," in
+    *,kodi,*)
+        echo
+        read -r -p "Create the kodi-apps containers now (e.g. youtube-tv - required before the switcher can launch them)? [Y/n] " _create_ans
+        _create_ans="${_create_ans:-Y}"
+        case "$_create_ans" in
+            [yY]|[yY][eE][sS])
+                if ! command -v docker >/dev/null 2>&1; then
+                    echo "  Warning: docker not found on PATH. Run this manually later:" >&2
+                    echo "    docker compose --profile kodi-apps create" >&2
+                elif ( cd "${SCRIPT_DIR}" && docker compose --profile kodi-apps create ); then
+                    echo "  kodi-apps containers created."
+                else
+                    echo "  Warning: container creation failed. Run this manually once it's fixed:" >&2
+                    echo "    docker compose --profile kodi-apps create" >&2
+                fi
+                ;;
+            *)
+                echo "  Skipped. Run 'docker compose --profile kodi-apps create' before using the switcher."
+                ;;
+        esac
+        ;;
+esac

@@ -45,14 +45,12 @@ services:
   # Never started directly with `docker compose up youtube-tv` while kodi is
   # also running - both would fight over /dev/dri. Use the switcher.
   #
-  # restart: "no" means it only ever starts when the switcher explicitly
-  # starts it - but `docker compose up` still starts every service matching
-  # an active profile the first time you run it, regardless of restart
-  # policy. So: after the one-time `docker compose --profile kodi up -d`,
-  # if that command happens to start youtube-tv alongside kodi, immediately
-  # `docker stop youtube-tv`. On every subsequent bring-up, target services
-  # explicitly instead of the bare profile command:
-  #   docker compose --profile kodi up -d kodi switcher
+  # Deliberately in its OWN profile ("kodi-apps"), not "kodi" - env-setup.sh
+  # never adds "kodi-apps" to COMPOSE_PROFILES in .env, so a plain
+  # `docker compose up` (which is what OMV runs on boot) only ever starts
+  # kodi + switcher, never this. It has to be created once by hand (see
+  # OperationsGuide.md) so it exists for the switcher to start on demand;
+  # after that, restart: "no" means it never starts itself again on its own.
   youtube-tv:
     build:
       context: ./youtube-tv
@@ -60,7 +58,7 @@ services:
     image: homeserver-youtube-tv:local
     pull_policy: never
     container_name: youtube-tv
-    profiles: ["kodi"]
+    profiles: ["kodi-apps"]
     restart: "no"
     init: true
     environment:

@@ -9,8 +9,17 @@
 # ../../kodi/Dockerfile needed.
 FROM debian:bookworm-slim
 
+# libgles2/libegl1/libgl1-mesa-dri: the `cog` package doesn't pull these in
+# as hard dependencies, but WPE's renderer process dlopen()s libGLESv2 at
+# runtime for its EGL/GBM compositing - without them it loads the page,
+# then immediately crashes ("Couldn't open libGLESv2.so.2") and reload-loops.
+# libgl1-mesa-dri is the actual Intel iGPU driver behind EGL/GLES, not just
+# the loader libs, so hardware acceleration needs it too.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cog \
+        libegl1 \
+        libgles2 \
+        libgl1-mesa-dri \
         python3 \
         python3-evdev \
         ca-certificates \
