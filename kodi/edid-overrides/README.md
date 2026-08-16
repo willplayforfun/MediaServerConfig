@@ -41,25 +41,28 @@ Instead, build a hybrid EDID: keep the transmitter's own (already-working)
 video timings untouched, and only splice in the real display's audio
 capability block.
 
-```bash
-# 1. Capture what the transmitter normally advertises, with everything
-#    connected as usual (server -> transmitter -> receiver -> display), no
-#    override active:
-cat /sys/class/drm/<connector>/edid > kodi/edid-overrides/transmitter-normal.bin
-
-# 2. Capture the real display's EDID directly (see above).
-```
-
-Then either run [kodi-edid-hybrid.sh](../../kodi-edid-hybrid.sh) (repo
-root), which lets you pick the two source files from a menu, builds the
-merged file as `<audio-source-name>_hybrid.bin`, and can hand off straight
-to `kodi-edid-setup.sh` to apply it:
+Run [kodi-edid-hybrid.sh](../../kodi-edid-hybrid.sh) (repo root):
 
 ```bash
 bash kodi-edid-hybrid.sh
 ```
 
-...or run the merge directly if you'd rather script it yourself:
+It lets you pick the video and audio sources from a menu, and each pick can
+be either an existing `.bin` file or a **live capture straight off a
+connector right now** (e.g. what the transmitter is currently advertising,
+with everything connected as usual - server -> transmitter -> receiver ->
+display, no override active). So for the transmitter side you typically
+don't need to capture anything by hand first; just pick "capture live" for
+the connector when prompted for the video source. You'd still capture the
+real display's EDID separately for the audio side (see above), since that
+needs the display connected directly, bypassing the transmitter.
+
+It builds the merged file as `<audio-source-name>_hybrid.bin` and can hand
+off straight to `kodi-edid-setup.sh` to apply it.
+
+If you'd rather script the merge yourself instead of the interactive
+picker, [scripts/edid-merge.py](../../scripts/edid-merge.py) takes two
+existing files directly:
 
 ```bash
 python3 scripts/edid-merge.py \

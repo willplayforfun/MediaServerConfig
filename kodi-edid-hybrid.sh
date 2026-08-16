@@ -1,9 +1,11 @@
 #!/bin/bash
 # kodi-edid-hybrid.sh
 # Interactive wrapper around scripts/edid-merge.py: lets you pick which
-# captured EDID supplies video timings and which supplies audio capability,
-# builds the merged file into kodi/edid-overrides/, and optionally hands off
-# straight to kodi-edid-setup.sh to apply it.
+# EDID supplies video timings and which supplies audio capability - either
+# an existing captured .bin file, or a live capture read straight off a
+# connector right now (e.g. what a transmitter is currently advertising) -
+# builds the merged file into kodi/edid-overrides/, and optionally hands
+# off straight to kodi-edid-setup.sh to apply it.
 #
 # See kodi/edid-overrides/README.md for why this two-source merge exists -
 # short version: forcing a display's whole EDID onto a wireless transmitter
@@ -28,66 +30,155 @@ if ! command -v python3 > /dev/null 2>&1; then
     exit 1
 fi
 
-shopt -s nullglob
-files=("$EDID_DIR"/*.bin)
-shopt -u nullglob
+# Reads the current EDID directly off a connector's sysfs attribute and
+# saves it under EDID_DIR (sysfs edid files are normally world-readable, so
+# this shouldn't need root, unlike kodi-edid-setup.sh's debugfs writes).
+# Echoes the saved path on success; returns 1 without echoing on failure.
+capture_connector() {
+    local conn_sysfs_dir="$1"
+    local conn_name
+    conn_name="$(basename "$conn_sysfs_dir" | sed -E 's/^card[0-9]+-//')"
+    local edid_attr="${conn_sysfs_dir}/edid"
+    local default_name="${conn_name}-live.bin"
+    local save_name save_path ow bytes
 
-if [ ${#files[@]} -eq 0 ]; then
-    echo "[kodi-edid-hybrid] No .bin files in $EDID_DIR. Capture some EDIDs first (see kodi/edid-overrides/README.md)." >&2
-    exit 1
-fi
+    if [ ! -r "$edid_attr" ]; then
+        echo "  Can't read $edid_attr (permission denied, or this kernel doesn't expose it here)." >&2
+        return 1
+    fi
 
-# Prints a numbered menu of the given files to stderr (NOT stdout - callers
-# capture pick_file's return value via command substitution, and anything
-# written to stdout here would silently corrupt that capture).
-list_files() {
-    local arr=("$@")
-    for i in "${!arr[@]}"; do
-        printf "  %d) %s\n" "$((i + 1))" "$(basename "${arr[$i]}")" >&2
+    read -r -p "  Save capture as [$default_name]: " save_name
+    save_name="${save_name:-$default_name}"
+    save_path="${EDID_DIR}/${save_name%.bin}.bin"
+
+    if [ -e "$save_path" ]; then
+        read -r -p "  $(basename "$save_path") already exists, overwrite? [y/N] " ow
+        if ! [[ "$ow" =~ ^[Yy] ]]; then
+            echo "  Not overwriting, capture cancelled." >&2
+            return 1
+        fi
+    fi
+
+    cat "$edid_attr" > "$save_path"
+
+    if [ ! -s "$save_path" ]; then
+        rm -f "$save_path"
+        echo "  $conn_name has no EDID data right now - is it actually connected and outputting? (see /sys/class/drm/$(basename "$conn_sysfs_dir")/status)" >&2
+        return 1
+    fi
+
+    bytes="$(wc -c < "$save_path" | tr -d ' ')"
+    echo "  Captured $bytes bytes from $conn_name -> $(basename "$save_path")" >&2
+    echo "$save_path"
+}
+
+# Builds the combined pick-list for one prompt: every *.bin in EDID_DIR,
+# plus a "capture live" entry per DRM connector. Populates the caller's
+# src_kinds[]/src_refs[] arrays (kind is "file" or "connector"; ref is a
+# file path or a /sys/class/drm/<connector> dir respectively).
+build_source_list() {
+    src_kinds=()
+    src_refs=()
+
+    shopt -s nullglob
+    local f
+    for f in "$EDID_DIR"/*.bin; do
+        src_kinds+=("file")
+        src_refs+=("$f")
+    done
+    shopt -u nullglob
+
+    local d name status
+    for d in /sys/class/drm/card*-*/; do
+        [ -f "${d}status" ] || continue
+        name="$(basename "$d" | sed -E 's/^card[0-9]+-//')"
+        status="$(cat "${d}status" 2> /dev/null || echo unknown)"
+        src_kinds+=("connector")
+        src_refs+=("${d%/}|${name}|${status}")
     done
 }
 
-# Prints a menu for the given files, prompts to pick one by number, and
-# echoes the chosen path on success (intended to be captured via `x="$(pick_file ...)"`).
-# Returns 1 without echoing anything if the input isn't a valid choice.
-pick_file() {
-    local prompt="$1"; shift
-    local arr=("$@")
-    local choice
-
-    list_files "${arr[@]}"
-    read -r -p "$prompt " choice
-
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#arr[@]}" ]; then
-        return 1
-    fi
-    echo "${arr[$((choice - 1))]}"
+# Prints the menu built by build_source_list to stderr (never stdout - the
+# caller captures pick_source's result via command substitution, and
+# anything on stdout here would silently corrupt that capture).
+list_sources() {
+    local i kind ref name status
+    for i in "${!src_kinds[@]}"; do
+        kind="${src_kinds[$i]}"
+        ref="${src_refs[$i]}"
+        if [ "$kind" = "file" ]; then
+            printf "  %d) %s\n" "$((i + 1))" "$(basename "$ref")" >&2
+        else
+            name="${ref#*|}"; name="${name%%|*}"
+            status="${ref##*|}"
+            printf "  %d) [capture live] %s (%s)\n" "$((i + 1))" "$name" "$status" >&2
+        fi
+    done
 }
 
-echo "[kodi-edid-hybrid] EDID files in $EDID_DIR:"
-echo
-echo "Which one has the VIDEO timings you want to keep (e.g. what the transmitter itself normally advertises)?"
-if ! video_file="$(pick_file "  Video source:" "${files[@]}")"; then
-    echo "[kodi-edid-hybrid] Not a valid selection, aborting." >&2
+# Prompts to pick one entry from the current src_kinds[]/src_refs[] (set by
+# build_source_list), resolving a "connector" pick into an actual capture.
+# Echoes the resulting file path on success; returns 1 on invalid input or
+# a cancelled/failed capture.
+pick_source() {
+    local prompt="$1"
+    local choice idx kind ref
+
+    list_sources
+    read -r -p "$prompt " choice
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#src_kinds[@]}" ]; then
+        return 1
+    fi
+
+    idx=$((choice - 1))
+    kind="${src_kinds[$idx]}"
+    ref="${src_refs[$idx]}"
+
+    if [ "$kind" = "file" ]; then
+        echo "$ref"
+    else
+        capture_connector "${ref%%|*}"
+    fi
+}
+
+build_source_list
+if [ ${#src_kinds[@]} -eq 0 ]; then
+    echo "[kodi-edid-hybrid] No .bin files in $EDID_DIR and no DRM connectors found under /sys/class/drm/. Nothing to work with." >&2
     exit 1
 fi
 
-# Offer every file except the one just picked, so you can't accidentally
-# merge a file with itself.
-audio_candidates=()
-for f in "${files[@]}"; do
-    [ "$f" = "$video_file" ] || audio_candidates+=("$f")
-done
+echo "[kodi-edid-hybrid] Which one has the VIDEO timings you want to keep (e.g. what the transmitter itself normally advertises)?"
+if ! video_file="$(pick_source "  Video source:")"; then
+    echo "[kodi-edid-hybrid] Not a valid selection (or the capture failed/was cancelled), aborting." >&2
+    exit 1
+fi
 
-if [ ${#audio_candidates[@]} -eq 0 ]; then
-    echo "[kodi-edid-hybrid] No other .bin files to pull audio capability from." >&2
+# Rebuild the source list so a file just captured for the video pick shows
+# up as a normal file option here too, and exclude whichever file the
+# video pick resolved to so you can't merge a file with itself.
+build_source_list
+filtered_kinds=()
+filtered_refs=()
+for i in "${!src_kinds[@]}"; do
+    if [ "${src_kinds[$i]}" = "file" ] && [ "${src_refs[$i]}" = "$video_file" ]; then
+        continue
+    fi
+    filtered_kinds+=("${src_kinds[$i]}")
+    filtered_refs+=("${src_refs[$i]}")
+done
+src_kinds=("${filtered_kinds[@]}")
+src_refs=("${filtered_refs[@]}")
+
+if [ ${#src_kinds[@]} -eq 0 ]; then
+    echo "[kodi-edid-hybrid] No other sources to pull audio capability from." >&2
     exit 1
 fi
 
 echo
 echo "Which one has the real AUDIO capability you want to add (e.g. a captured display EDID)?"
-if ! audio_file="$(pick_file "  Audio source:" "${audio_candidates[@]}")"; then
-    echo "[kodi-edid-hybrid] Not a valid selection, aborting." >&2
+if ! audio_file="$(pick_source "  Audio source:")"; then
+    echo "[kodi-edid-hybrid] Not a valid selection (or the capture failed/was cancelled), aborting." >&2
     exit 1
 fi
 
