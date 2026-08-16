@@ -2,33 +2,21 @@
 
 Drop captured raw EDID binaries here to fix displays/transmitters that
 advertise broken or incomplete EDID (most commonly: missing HDMI audio
-capability). [kodi-edid-setup.sh](../../kodi-edid-setup.sh) applies every
-file here to the host's DRM debugfs.
+capability). Name them descriptively (e.g. `aurora-pro.bin`) - filenames
+don't need to match a connector name.
 
-Run it as root after every boot, before starting Kodi - debugfs overrides
-don't survive a reboot, so this isn't a one-time setup step:
+Run [kodi-edid-setup.sh](../../kodi-edid-setup.sh) as root after every
+boot, before starting Kodi - debugfs overrides don't survive a reboot, so
+this isn't a one-time setup step:
 
 ```bash
 sudo bash kodi-edid-setup.sh
 ```
 
-(wire it into a cron `@reboot` job or a systemd oneshot unit if you want it
-applied automatically instead of by hand each time).
-
-Name each file after the DRM connector it should override, e.g.:
-
-```
-HDMI-A-1.bin
-```
-
-Find the real connector name on the server with:
-
-```bash
-ls /sys/class/drm/ | grep -E 'HDMI|DP'
-```
-
-(check `cat /sys/class/drm/<name>/status` for `connected` to confirm which
-one is actually in use).
+It scans the real DRM connectors on every run (connector names/ordering can
+shift across reboots or re-cabling) and asks, per file, which connector (if
+any) to apply it to - so it's interactive by design and isn't a fit for an
+unattended cron `@reboot` job as-is.
 
 To capture a real EDID from a display, connect it directly to a machine
 (bypassing any transmitter/extender) and read it from `/sys/class/drm/<connector>/edid`

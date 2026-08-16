@@ -9,6 +9,11 @@
 # after every boot, before Kodi first reads the connector - either by hand,
 # or wired into a cron @reboot job / systemd oneshot unit.
 #
+# Files are named descriptively (e.g. aurora-pro.bin), not after a connector
+# - connector names can change across reboots/re-cabling, and aren't stable
+# enough to bake into a filename. Instead, this scans the real connectors on
+# every run and asks interactively which (if any) each file should go to.
+#
 # Usage:
 #   sudo bash kodi-edid-setup.sh
 #
@@ -40,8 +45,44 @@ if [ ${#files[@]} -eq 0 ]; then
     exit 0
 fi
 
+# Scan real connectors (sysfs, not debugfs - sysfs has the human-readable
+# status). Strip the "cardN-" prefix so names match the debugfs layout used
+# below (/sys/kernel/debug/dri/<N>/<connector>/), e.g. card0-HDMI-A-1 -> HDMI-A-1.
+conn_names=()
+conn_status=()
+for d in /sys/class/drm/card*-*/; do
+    [ -f "${d}status" ] || continue
+    base="$(basename "$d")"
+    conn_names+=("$(echo "$base" | sed -E 's/^card[0-9]+-//')")
+    conn_status+=("$(cat "${d}status" 2>/dev/null || echo unknown)")
+done
+
+if [ ${#conn_names[@]} -eq 0 ]; then
+    echo "[kodi-edid-setup] No DRM connectors found under /sys/class/drm/. Nothing to apply overrides to." >&2
+    exit 1
+fi
+
+echo "[kodi-edid-setup] Found connectors:"
+for i in "${!conn_names[@]}"; do
+    printf "  %d) %s (%s)\n" "$((i + 1))" "${conn_names[$i]}" "${conn_status[$i]}"
+done
+
 for f in "${files[@]}"; do
-    name="$(basename "$f" .bin)"
+    echo
+    echo "[kodi-edid-setup] File: $(basename "$f")"
+    read -r -p "  Apply to which connector above? [blank to skip] " choice
+
+    if [ -z "$choice" ]; then
+        echo "  Skipped."
+        continue
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#conn_names[@]}" ]; then
+        echo "  '$choice' isn't one of the listed numbers, skipping $(basename "$f")." >&2
+        continue
+    fi
+
+    name="${conn_names[$((choice - 1))]}"
     applied=0
 
     for card_dir in "$DEBUGFS_DRI"/*/; do
@@ -50,7 +91,7 @@ for f in "${files[@]}"; do
         force="${connector_dir}/force"
 
         if [ -e "$override" ]; then
-            echo "[kodi-edid-setup] Applying $f -> $override"
+            echo "  Applying $(basename "$f") -> $override"
             cat "$f" > "$override"
 
             # edid_override only takes effect on the next detect cycle, so
@@ -64,8 +105,9 @@ for f in "${files[@]}"; do
     done
 
     if [ "$applied" -eq 0 ]; then
-        echo "[kodi-edid-setup] WARNING: no connector named '$name' found under $DEBUGFS_DRI. Check the filename matches a real connector (see /sys/class/drm/)." >&2
+        echo "  WARNING: '$name' has no matching entry under $DEBUGFS_DRI (debugfs and sysfs connector names normally match - if they don't here, something's unusual)." >&2
     fi
 done
 
+echo
 echo "[kodi-edid-setup] Done."
