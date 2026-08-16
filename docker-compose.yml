@@ -1,3 +1,9 @@
+# switcher/compose.yml defines the switcher broker and any kiosk apps (e.g.
+# youtube-tv) that share the kodi container's display and get launched from
+# its home screen - see the comments in that file for the full picture.
+include:
+  - switcher/compose.yml
+
 services:
   # ── Helpsite Render ────────────────────────────────────────────────────────
   # One-shot. Walks ./helpsite, renders any *.tmpl files into ./helpsite-rendered

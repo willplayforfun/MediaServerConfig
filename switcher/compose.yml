@@ -1,0 +1,77 @@
+services:
+  # ── App Switcher ───────────────────────────────────────────────────────────
+  # Kodi and any kiosk browser app (e.g. youtube-tv) all render straight to
+  # DRM/KMS with no compositor, so only one of them can own the display at a
+  # time. This broker stops whichever member of SWITCH_GROUP is currently
+  # running and starts the requested one - it has to live in its own
+  # container rather than a script inside kodi/youtube-tv themselves, since
+  # a container can't reliably stop itself and then start another one (it
+  # gets torn down mid-script).
+  #
+  # Adding a future switchable app: give it its own service below, add its
+  # container_name to SWITCH_GROUP, and trigger it the same way youtube-tv
+  # is triggered (see kodi/Dockerfile's curl + the Kodi favourite that calls
+  # POST /switch/<name>).
+  #
+  # docker.sock is mounted read-write so this container can stop/start its
+  # siblings via the Docker Engine API - that's root-equivalent control of
+  # the host. Acceptable here because the port below is never published, so
+  # it's only reachable from other containers on this compose project's
+  # default network, never from the LAN.
+  switcher:
+    build:
+      context: ./switcher
+      dockerfile: Dockerfile
+    image: homeserver-switcher:local
+    pull_policy: never
+    container_name: switcher
+    profiles: ["kodi"]
+    restart: unless-stopped
+    environment:
+      - SWITCH_GROUP=kodi,youtube-tv
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ── YouTube TV (kiosk browser) ───────────────────────────────────────────
+  # Runs the real youtube.com/tv (the TV-optimized web app, not Kodi's
+  # plugin.video.youtube add-on) via cog/WPE WebKit, rendering straight to
+  # DRM/KMS the same way kodi-gbm does. Launched from Kodi via a favourite
+  # that POSTs to the switcher; returns to Kodi via a dedicated button on
+  # the air-mouse remote, watched by watcher.py inside this container.
+  #
+  # Never started directly with `docker compose up youtube-tv` while kodi is
+  # also running - both would fight over /dev/dri. Use the switcher.
+  #
+  # restart: "no" means it only ever starts when the switcher explicitly
+  # starts it - but `docker compose up` still starts every service matching
+  # an active profile the first time you run it, regardless of restart
+  # policy. So: after the one-time `docker compose --profile kodi up -d`,
+  # if that command happens to start youtube-tv alongside kodi, immediately
+  # `docker stop youtube-tv`. On every subsequent bring-up, target services
+  # explicitly instead of the bare profile command:
+  #   docker compose --profile kodi up -d kodi switcher
+  youtube-tv:
+    build:
+      context: ./switcher/youtube-tv
+      dockerfile: Dockerfile
+    image: homeserver-youtube-tv:local
+    pull_policy: never
+    container_name: youtube-tv
+    profiles: ["kodi"]
+    restart: "no"
+    init: true
+    environment:
+      - SWITCHER_URL=http://switcher:8099/switch/kodi
+      # Placeholders - see switcher/youtube-tv/watcher.py for how to find
+      # the real values once the remote is on hand.
+      - REMOTE_DEVICE=
+      - RETURN_KEY=KEY_HOMEPAGE
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/snd:/dev/snd
+      - /dev/input:/dev/input
+    group_add:
+      - video
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /run/udev:/run/udev:ro

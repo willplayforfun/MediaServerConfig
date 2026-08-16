@@ -13,3 +13,8 @@ RUN pacman-key --init && \
     pacman -Sy --noconfirm archlinux-keyring && \
     pacman-key --populate archlinux && \
     pacman -S --noconfirm kodi-addon-peripheral-joystick
+
+# curl is what the "YouTube" Kodi favourite shells out to (System.Exec) to
+# tell the switcher container to stop Kodi and start the youtube-tv kiosk
+# browser - see switcher/compose.yml.
+RUN pacman -S --noconfirm curl
