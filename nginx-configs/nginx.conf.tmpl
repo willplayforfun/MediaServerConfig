@@ -21,17 +21,20 @@ server {
     listen 80;
     server_name _;
 
-    # ACME challenge responses for Let's Encrypt (certbot webroot renewal)
+    # ACME challenge responses for Let's Encrypt (certbot webroot renewal).
+    # Must be its own location so it's matched before the HTTPS-redirect below.
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
 
-    # Redirect non-LAN clients to HTTPS
-    if ($needs_https) {
-        return 301 https://$host$request_uri;
-    }
+    location / {
+        # Redirect non-LAN clients to HTTPS
+        if ($needs_https) {
+            return 301 https://$host$request_uri;
+        }
 
-    include /etc/nginx/locations.conf;
+        include /etc/nginx/locations.conf;
+    }
 }
 
 # ── HTTPS ─────────────────────────────────────────────────────────────────────
