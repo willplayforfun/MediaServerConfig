@@ -41,10 +41,28 @@ section "DRM connectors (sysfs)"
 for d in /sys/class/drm/card*-*/; do
     [ -f "${d}status" ] || continue
     name="$(basename "$d")"
+    # sysfs binary attributes always stat as 0 bytes, so measure by reading
+    edid_len="$(cat "${d}edid" 2>/dev/null | wc -c)"
     edid_md5="none"
-    [ -s "${d}edid" ] && edid_md5="$(md5sum < "${d}edid" | cut -c1-12) ($(stat -c %s "${d}edid") bytes)"
+    [ "$edid_len" -gt 0 ] && edid_md5="$(md5sum < "${d}edid" | cut -c1-12) (${edid_len} bytes)"
     echo "$name: status=$(cat "${d}status") enabled=$(cat "${d}enabled" 2>/dev/null) edid=$edid_md5"
     echo "  modes: $(head -n 8 "${d}modes" 2>/dev/null | tr '\n' ' ')"
+done
+
+section "active display mode (i915)"
+for f in /sys/kernel/debug/dri/*/i915_display_info; do
+    [ -e "$f" ] || continue
+    grep -iE 'crtc|mode:|hdmi|active=' "$f" | head -n 20
+    break
+done
+
+section "HDMI audio ELD (what the sink says it can play)"
+# monitor_present/eld_valid=1 and sad_count>0 means the transmitter's EDID
+# already advertises audio - i.e. no override needed for audio at all.
+for f in /proc/asound/card*/eld#*; do
+    [ -e "$f" ] || continue
+    echo "-- $f"
+    grep -E 'monitor_present|eld_valid|monitor_name|sad_count|sad[0-9]+_coding_type|sad[0-9]+_channels|sad[0-9]+_rates' "$f"
 done
 
 section "DRM connectors (debugfs override/force)"
@@ -113,3 +131,5 @@ for _ in $(seq 1 40); do
     sleep 0.5
 done
 echo "(sampling done - only changes are printed, so one line means no change)"
+echo "(no change here while the projector flaps = the drop is on the wireless TX/RX link,"
+echo " not a hotplug the server sees - that points at the signal being sent, not the connection)"
