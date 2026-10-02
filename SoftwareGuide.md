@@ -103,9 +103,9 @@ But it won't work on all hardware, so don't be bummed if it fails out.
 ### HDMI Audio Fix (optional)
 
 If the server drives a display over HDMI (Intel iGPU) and video works but there's no sound:
-- Run `bash /opt/docker/install-hdmi-audio-fix.sh`, then reboot
+- Run `bash /opt/docker/install-hdmi-audio-fix.sh` and pick a fix (the boot re-probe service is the recommended default)
 
-It fixes a boot-time race where the audio driver loads before the graphics driver and misses the HDMI port. See the script's header for how to recognise the problem.
+It fixes a boot-time race where the audio driver sets up before the display is ready and misses the HDMI port. See the script's header for how to recognise the problem.
 
 ### Install OMV-Extras
 
