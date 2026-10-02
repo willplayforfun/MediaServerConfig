@@ -79,12 +79,6 @@ else
     echo "debugfs not mounted"
 fi
 
-section "EDID files in repo"
-for f in "${REPO_DIR}"/kodi/edid-overrides/*.bin; do
-    [ -e "$f" ] || { echo "(none)"; break; }
-    echo "$(md5sum < "$f" | cut -c1-12)  $(stat -c %s "$f") bytes  $(basename "$f")  modified $(stat -c %y "$f" | cut -d. -f1)"
-done
-
 section "display containers"
 for c in kodi switcher youtube-tv; do
     if docker inspect "$c" >/dev/null 2>&1; then
