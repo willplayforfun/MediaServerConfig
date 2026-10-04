@@ -1,0 +1,6 @@
+endpoints:
+  - name: Plex
+    group: Services
+    url: http://plex:32400/identity
+    conditions:
+      - "[STATUS] == 200"

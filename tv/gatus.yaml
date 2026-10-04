@@ -1,0 +1,7 @@
+# Only the hub: the app containers are stopped whenever they're not on screen.
+endpoints:
+  - name: TV hub
+    group: Display
+    url: http://tv-hub:8099/api/state
+    conditions:
+      - "[STATUS] == 200"

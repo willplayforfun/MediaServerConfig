@@ -1,0 +1,6 @@
+endpoints:
+  - name: Filebrowser
+    group: Services
+    url: http://filebrowser:80/files/health
+    conditions:
+      - "[STATUS] == 200"

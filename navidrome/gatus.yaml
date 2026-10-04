@@ -1,0 +1,6 @@
+endpoints:
+  - name: Navidrome
+    group: Services
+    url: http://navidrome:4533/music/app/
+    conditions:
+      - "[STATUS] == 200"

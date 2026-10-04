@@ -1,0 +1,6 @@
+endpoints:
+  - name: Kodi
+    group: Display
+    url: http://kodi:8080/jsonrpc
+    conditions:
+      - "[STATUS] < 500"   # 401 still means it's up; the web server may require a login

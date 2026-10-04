@@ -1,0 +1,6 @@
+endpoints:
+  - name: Stash
+    group: Services
+    url: http://stash:9999/
+    conditions:
+      - "[STATUS] == 200"

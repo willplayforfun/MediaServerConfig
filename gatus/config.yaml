@@ -1,0 +1,38 @@
+# Core Gatus config plus the always-on infrastructure checks. gatus-render
+# merges in <profile>/gatus.yaml for each enabled profile
+# (scripts/gatus-render.sh). Gatus fills in ${VAR}s from its own environment.
+storage:
+  type: sqlite
+  path: /data/data.db
+
+ui:
+  title: Server status
+  header: ${DOMAIN}
+
+endpoints:
+  - name: nginx
+    group: Infrastructure
+    url: http://nginx/help/
+    conditions:
+      - "[STATUS] == 200"
+
+  # The public URL, resolved through dnsmasq so it stays on the LAN. Certbot
+  # renews with 30 days left, so under 10 means renewal is failing.
+  - name: HTTPS certificate
+    group: Infrastructure
+    url: https://${DOMAIN}/help/
+    client:
+      dns-resolver: udp://${LOCAL_IP}:53
+    conditions:
+      - "[STATUS] == 200"
+      - "[CERTIFICATE_EXPIRATION] > 240h"
+
+  - name: dnsmasq
+    group: Infrastructure
+    url: ${LOCAL_IP}
+    dns:
+      query-name: ${DOMAIN}
+      query-type: A
+    conditions:
+      - "[DNS_RCODE] == NOERROR"
+      - "[BODY] == ${LOCAL_IP}"

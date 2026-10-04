@@ -1,0 +1,7 @@
+endpoints:
+  - name: Jellyfin
+    group: Services
+    url: http://jellyfin:8096/jellyfin/health   # assumes the /jellyfin Base URL from the setup guide
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY] == Healthy"

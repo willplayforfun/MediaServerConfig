@@ -1,0 +1,6 @@
+endpoints:
+  - name: FileFlows
+    group: Services
+    url: http://fileflows:5000/
+    conditions:
+      - "[STATUS] == 200"

@@ -1,0 +1,6 @@
+endpoints:
+  - name: Audiobookshelf
+    group: Services
+    url: http://audiobookshelf:80/healthcheck
+    conditions:
+      - "[STATUS] == 200"

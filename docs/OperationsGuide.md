@@ -85,6 +85,9 @@ If you are curious which ports are relevant:
 ### Audiobookshelf
 - 13378 - webui (routed to by Nginx)
 
+### Gatus
+- 8090 - status dashboard showing the health of every enabled service
+
 
 # TV Launcher App
 

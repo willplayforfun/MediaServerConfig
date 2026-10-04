@@ -1,0 +1,6 @@
+endpoints:
+  - name: Universal Media Server
+    group: Services
+    url: http://${LOCAL_IP}:9001/   # host networking, so not reachable by container name
+    conditions:
+      - "[STATUS] < 400"

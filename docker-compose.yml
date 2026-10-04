@@ -1,7 +1,7 @@
-# Core infrastructure (reverse proxy, TLS, DNS) is defined in this file and
-# always runs. Each optional service lives in its own directory with its own
-# compose.yml, enabled through its profile in COMPOSE_PROFILES (env-setup.sh
-# sets that). Relative paths in an included file resolve against that file's
+# Core infrastructure (reverse proxy, TLS, DNS, health monitoring) is defined in
+# this file and always runs. Each optional service lives in its own directory
+# with its own compose.yml, enabled through its profile in COMPOSE_PROFILES
+# (env-setup.sh sets that), and a gatus.yaml for its health checks. Relative paths in an included file resolve against that file's
 # directory, so e.g. ./config in jellyfin/compose.yml means jellyfin/config.
 include:
   - jellyfin/compose.yml
@@ -74,6 +74,40 @@ services:
       - VARS=$${DOMAIN} $${LOCAL_IP}
       - DOMAIN=${DOMAIN}
       - LOCAL_IP=${LOCAL_IP}
+
+  # ── Gatus Render ───────────────────────────────────────────────────────────
+  # One-shot. Assembles ./gatus-rendered from the enabled profiles' gatus.yaml.
+  gatus-render:
+    image: alpine:latest
+    volumes:
+      - .:/repo:ro
+      - ./gatus-rendered:/out
+      - ./scripts/gatus-render.sh:/gatus-render.sh:ro
+    environment:
+      - REPO=/repo
+      - OUT=/out
+      - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
+    entrypoint: ["/bin/sh", "/gatus-render.sh"]
+
+  # ── Gatus ──────────────────────────────────────────────────────────────────
+  # Health dashboard for every enabled service. LAN only, on its own port:
+  # Gatus can't be served under an nginx subpath.
+  gatus:
+    image: twinproduction/gatus:stable
+    container_name: gatus
+    restart: unless-stopped
+    depends_on:
+      gatus-render:
+        condition: service_completed_successfully
+    ports:
+      - "8090:8080"
+    environment:
+      - GATUS_CONFIG_PATH=/config
+      - DOMAIN=${DOMAIN}
+      - LOCAL_IP=${LOCAL_IP}
+    volumes:
+      - ./gatus-rendered:/config:ro
+      - ./gatus/data:/data
 
   # ── Cert Init ──────────────────────────────────────────────────────────────
   # One-shot service. Runs before nginx starts.
