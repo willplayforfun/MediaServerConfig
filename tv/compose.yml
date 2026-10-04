@@ -57,7 +57,7 @@ services:
       tv-render:
         condition: service_completed_successfully
     environment:
-      - APPS=home=tv-home,youtube=tv-youtube
+      - APPS=home=tv-home,youtube=tv-youtube,jellyfin=tv-jellyfin
       - REMOTE_DEVICES=${REMOTE_DEVICES:-}   # blank = every input device
       - HOME_KEY=${HOME_KEY:-KEY_HOMEPAGE}
       - SLEEP_KEY=${SLEEP_KEY:-}
@@ -98,3 +98,22 @@ services:
       - /run/udev:/run/udev:ro
       - ./apps-rendered:/config:ro
       - ./data/youtube:/data   # keeps the YouTube sign-in
+
+  # Own image (Qt/eglfs, not Cog), but the same device/volume setup.
+  tv-jellyfin:
+    <<: *tv-browser
+    build:
+      context: ./jellyfin
+    image: homeserver-tv-jellyfin:local
+    container_name: tv-jellyfin
+    shm_size: 512m   # Chromium crashes on Docker's 64 MB default
+    environment:
+      - APP=jellyfin
+      - XDG_DATA_HOME=/data
+      - XDG_CACHE_HOME=/data/cache
+      - XDG_CONFIG_HOME=/data/config
+    volumes:   # replaces the shared list, so repeats it
+      - /etc/localtime:/etc/localtime:ro
+      - /run/udev:/run/udev:ro
+      - ./apps-rendered:/config:ro
+      - ./data/jellyfin:/data   # keeps the server address and sign-in
