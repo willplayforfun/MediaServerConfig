@@ -128,8 +128,10 @@ def stop(container):
 def start(container):
     status, body = docker_request("POST", f"/containers/{container}/start")
     if status == 404:
+        # Also returned for a stale network or image, not just a missing container.
         raise RuntimeError(
-            f"container {container} doesn't exist - re-run env-setup.sh to create the TV app containers"
+            f"start {container} got 404 ({body.decode(errors='replace').strip()}) - if the "
+            "container is missing or stale, re-run env-setup.sh to recreate the TV app containers"
         )
     if status not in (204, 304):  # 304 = already started
         raise RuntimeError(f"start {container} failed: {status} {body!r}")

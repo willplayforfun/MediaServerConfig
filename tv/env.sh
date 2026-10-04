@@ -90,18 +90,20 @@ tv_apps() {
 # Creates or updates the app containers (`compose up` skips "tv-apps"). The
 # services are named because --profile overrides COMPOSE_PROFILES: without
 # names, create would also recreate changed core containers and leave them stopped.
+# --force-recreate because `compose down` removes the network but not these
+# containers, and a plain create keeps them pointing at the dead network.
 tv_post_setup() {
     local -a apps
     local cmd
     mapfile -t apps < <(tv_apps)
-    cmd="docker compose --profile tv-apps create --build ${apps[*]}"
+    cmd="docker compose --profile tv-apps create --build --force-recreate ${apps[*]}"
     echo
     if ! confirm "Create or update the TV app containers now (required before the launcher can show anything)?" Y; then
         echo "  Skipped. Run '${cmd}' before using the launcher."
     elif ! command -v docker >/dev/null 2>&1; then
         echo "  Warning: docker not found on PATH. Run this manually later:" >&2
         echo "    ${cmd}" >&2
-    elif ( cd "${REPO_DIR}" && docker compose --profile tv-apps create --build "${apps[@]}" ); then
+    elif ( cd "${REPO_DIR}" && docker compose --profile tv-apps create --build --force-recreate "${apps[@]}" ); then
         echo "  TV app containers are up to date."
     else
         echo "  Warning: container creation failed. Run this manually once it's fixed:" >&2
