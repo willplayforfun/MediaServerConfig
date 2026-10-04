@@ -4,7 +4,7 @@
 # Must be run as root on the OMV host.
 #
 # Usage:
-#   sudo /opt/docker/install-omv-extras.sh
+#   sudo /opt/docker/host/install-omv-extras.sh
 
 set -euo pipefail
 

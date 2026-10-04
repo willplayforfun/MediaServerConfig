@@ -25,9 +25,11 @@
 #                                 (default: none; see scripts/sync-internal-dns.py)
 #     INTERNAL_DNS_ADAPTER=opnsense requires: OPNSENSE_URL, OPNSENSE_API_KEY,
 #     OPNSENSE_API_SECRET; optional OPNSENSE_TLS_VERIFY (default: false)
+#   MEDIA_ROOT                    media pool holding movies/, tv/, music/, ...
+#                                  (default: /srv/mergerfs/media)
 #   PLEX_CLAIM                    claim token from plex.tv/claim (default: empty)
 #   PLEX_HTTPS_PORT               nginx TLS port for Plex (default: 8443)
-#   FILEBROWSER_ROOT              filebrowser root path (default: /srv/mergerfs/media/share)
+#   FILEBROWSER_ROOT              filebrowser root path (default: ${MEDIA_ROOT}/share)
 #   INITIAL_FILEBROWSER_PASSWORD  initial filebrowser admin password (default: hellofilebrowser)
 #   UMS_NETWORK_INTERFACE         host LAN interface for UMS's DLNA/UPnP discovery
 #   REMOTE_DEVICES                comma-separated stable /dev/input/by-id/... paths the
@@ -134,9 +136,11 @@ fi
 # --- Optional inputs with defaults -------------------------------------------
 DNS1="${DNS1:-1.1.1.1}"
 DNS2="${DNS2:-8.8.8.8}"
+MEDIA_ROOT="${MEDIA_ROOT:-/srv/mergerfs/media}"
+MEDIA_ROOT="${MEDIA_ROOT%/}"
 PLEX_CLAIM="${PLEX_CLAIM:-}"
 PLEX_HTTPS_PORT="${PLEX_HTTPS_PORT:-8443}"
-FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}"
+FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-${MEDIA_ROOT}/share}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 REMOTE_DEVICES="${REMOTE_DEVICES:-}"
 HOME_KEY="${HOME_KEY:-KEY_HOMEPAGE}"

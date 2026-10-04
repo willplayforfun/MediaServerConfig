@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
-# TV hub: the brain of the TV launcher (a "smart TV" home screen for a
-# display plugged into the server's HDMI output).
-#
-#  - Serves the launcher page (shown full-screen by the tv-home browser).
-#  - Switches apps. Every TV app renders straight to DRM/KMS with no
-#    compositor, so only one may own the display at a time: launching one
-#    stops whichever other APPS container is running, via the Docker Engine
-#    API on the mounted socket (stdlib only - no docker CLI in this image).
-#  - Sleep/wake. So the display (and anything else in the HDMI chain) isn't
-#    driven nonstop, when idle the hub stops every app and blanks the
-#    console, which turns the HDMI output off - most displays then go to
-#    standby. Any remote key press wakes back to the launcher.
-#  - Remote input. Reads raw evdev events straight from /dev/input: the
-#    Home key returns to the launcher from any app, a long press of Home
-#    (or SLEEP_KEY) sleeps, and any key/motion counts as activity.
-#
-# Which app is on screen is asked of the Engine API every time rather than
-# tracked in memory, so it stays correct if this container restarts.
+# TV hub: serves the launcher page, switches apps (only one can own the
+# display, so launching one stops the rest via the Docker socket), reads the
+# remote from evdev, and sleeps/wakes the display by blanking the console.
+# The current app is always read from Docker, never tracked in memory, so it
+# stays correct across a hub restart.
 
 import fcntl
 import glob
@@ -35,30 +22,25 @@ PORT = int(os.environ.get("PORT", "8099"))
 STOP_TIMEOUT = int(os.environ.get("STOP_TIMEOUT", "10"))
 HOME_APP = "home"
 
-# The console the hub blanks to turn HDMI off. Blanking acts on whichever VT
-# is in the foreground, so any VT device works.
+# Blanking acts on the foreground VT, so any VT device works.
 CONSOLE_TTY = os.environ.get("CONSOLE_TTY", "/dev/tty1")
-# Host's /proc/asound, bind-mounted in (Docker masks the container's own),
-# used to tell whether audio is playing before an idle sleep.
+# The host's /proc/asound, to check for playing audio before an idle sleep.
 ASOUND_DIR = os.environ.get("ASOUND_DIR", "/host/asound")
 
 HOME_IDLE = float(os.environ.get("HOME_IDLE_MINUTES", "10")) * 60
 APP_IDLE = float(os.environ.get("APP_IDLE_MINUTES", "240")) * 60
 LONG_PRESS = float(os.environ.get("LONG_PRESS_SECONDS", "1.5"))
-# "home" shows the launcher when the hub starts; "sleep" keeps the display
-# dark until a remote key is pressed.
+# "home" or "sleep" (dark until a key is pressed).
 BOOT_STATE = os.environ.get("BOOT_STATE", "home")
 
-# Launcher tiles: label and accent colour for apps the hub knows about.
-# An app not listed here still gets a tile, labelled with its name.
+# Tile label and colour. Unlisted apps get a plain tile with their name.
 APP_META = {
     "youtube": {"label": "YouTube", "color": "#ff0033"},
     "jellyfin": {"label": "Jellyfin", "color": "#8e5cf7"},
     "steam": {"label": "Steam", "color": "#1a9fff"},
 }
 
-# evdev key codes for names evtest commonly reports for remote buttons.
-# Any other key can be given by number (evtest prints "code 172 (KEY_...)").
+# Common remote key names. Any other key can be given by its evtest code.
 KEY_CODES = {
     "KEY_ESC": 1, "KEY_ENTER": 28, "KEY_HOME": 102, "KEY_UP": 103,
     "KEY_LEFT": 105, "KEY_RIGHT": 106, "KEY_DOWN": 108, "KEY_POWER": 116,

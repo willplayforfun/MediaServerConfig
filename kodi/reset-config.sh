@@ -1,17 +1,16 @@
 #!/bin/bash
-# kodi-reset-config.sh
+# reset-config.sh
 # Wipes kodi/config/ so Kodi comes back up with a completely default profile.
 #
 # Stops the kodi container first if it's running.
 #
 # Usage:
-#   bash scripts/kodi-reset-config.sh
+#   bash kodi/reset-config.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_DIR="${REPO_DIR}/kodi/config"
+CONFIG_DIR="${SCRIPT_DIR}/config"
 
 if [ ! -d "$CONFIG_DIR" ]; then
     echo "[kodi-reset-config] $CONFIG_DIR doesn't exist. Nothing to do."

@@ -1,0 +1,55 @@
+services:
+  # ── Stash ──────────────────────────────────────────────────────────────────
+  stash:
+    image: stashapp/stash:latest
+    container_name: stash
+    profiles: ["stash"]
+    restart: unless-stopped
+    ports:
+      - "9999:9999"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "2m"
+    environment:
+      - STASH_STASH=/data/
+      - STASH_GENERATED=/generated/
+      - STASH_METADATA=/metadata/
+      - STASH_CACHE=/cache/
+      - STASH_PORT=9999
+    networks:
+      default: {}
+      stash-chrome-net: {}
+    volumes:
+      - ${MEDIA_ROOT:?run env-setup.sh}/extra/media:/data/media
+      - /etc/localtime:/etc/localtime:ro
+      - ./config:/root/.stash
+      - ./metadata:/metadata
+      - ./cache:/cache
+      - ./blobs:/blobs
+      - ./generated:/generated
+
+  # ── Stash Chrome ───────────────────────────────────────────────────────────
+  # Headless Chrome for scrapers that need a real browser (useCDP: true).
+  # Keep the image's default entrypoint: its socat proxy is what exposes
+  # port 9222. Chrome rejects a hostname in the Host header, so Stash has to
+  # use the static IP. In Stash, set Settings → System → Scraping → Chrome
+  # CDP Path to http://172.28.1.10:9222/json/version
+  stash-chrome:
+    image: chromedp/headless-shell:latest
+    container_name: stash-chrome
+    profiles: ["stash"]
+    restart: unless-stopped
+    shm_size: "2gb"
+    init: true
+    networks:
+      stash-chrome-net:
+        ipv4_address: 172.28.1.10
+
+networks:
+  # Fixed subnet for stash-chrome's static IP.
+  stash-chrome-net:
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24

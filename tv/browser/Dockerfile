@@ -1,18 +1,9 @@
-# Kiosk browser for TV apps: cog (WPE WebKit's minimal launcher) rendering
-# straight to DRM/KMS - no X11/Wayland session - so it can take over the
-# display the moment the hub stops whatever was on screen. One image serves
-# every browser-based app (the launcher, YouTube, ...); the URL and user
-# agent come from the environment.
-#
-# Package names are Debian bookworm's.
-#  - libegl1/libgles2/libgl1-mesa-dri: cog doesn't depend on them, but WPE's
-#    renderer dlopen()s libGLESv2 at runtime, and libgl1-mesa-dri is the
-#    actual GPU driver (Intel/AMD) behind EGL/GLES. Without them the page loads,
-#    then crashes ("Couldn't open libGLESv2.so.2") in a reload loop.
-#  - gstreamer1.0-*: WPE plays all media through GStreamer. alsa is the
-#    audio sink, libav/plugins-good/-bad the software decoders (VP9, H.264,
-#    Opus, AAC for YouTube), vaapi plus a VA-API driver hardware decode
-#    (intel-media-va-driver for Intel, mesa-va-drivers for AMD).
+# Kiosk browser shared by every browser-based TV app: cog (WPE WebKit)
+# rendering straight to DRM/KMS. URL and user agent come from the env.
+#  - libegl1/libgles2/libgl1-mesa-dri aren't cog dependencies, but WPE
+#    dlopen()s GLES at runtime; without them the page crash-loops.
+#  - WPE plays all media through GStreamer; vaapi plus the VA drivers give
+#    hardware decode.
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

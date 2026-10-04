@@ -99,6 +99,6 @@ Setup notes:
   - list the candidates with `aplay -L | grep ^hdmi`;
   - with the TV apps stopped, try each one with `speaker-test -D <device> -c 2 -t sine -l 1`;
   - put the one that plays in `TV_AUDIO_DEVICE`. On Intel graphics it's usually one of `hdmi:CARD=PCH,DEV=0`, `DEV=1` or `DEV=2`.
-  - If none play, see `install-hdmi-audio-fix.sh`.
+  - If none play, see `host/install-hdmi-audio-fix.sh`.
 - After changing the TV app env settings, restart the docker stack.
 - Troubleshooting: `sudo bash scripts/display-diagnose.sh`, and `docker logs tv-hub`.

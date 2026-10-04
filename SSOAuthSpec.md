@@ -60,7 +60,7 @@ The office server (`OfficeServerConfig`) runs Keycloak. Confirmed details:
 ### DNS — verify this first
 
 `*.mlev.net` LAN records resolve to `192.168.10.42` via the **router's** resolver. This stack runs
-its own `dnsmasq` ([docker-compose.yml:412](docker-compose.yml:412)) forwarding to `${DNS1}`/`${DNS2}`,
+its own `dnsmasq` ([docker-compose.yml:170](docker-compose.yml:170)) forwarding to `${DNS1}`/`${DNS2}`,
 with an empty [local.conf.tmpl](dnsmasq/local.conf.tmpl).
 
 **If `DNS1` is the router, this works. If it's a public resolver, `keycloak.mlev.net` will resolve
@@ -150,7 +150,7 @@ the shape the office stack already runs successfully, so it's well-trodden rathe
 ## The toggle mechanism
 
 The repo renders nginx config through `envsubst`
-([nginx-render](docker-compose.yml:28) → [locations.conf.tmpl](nginx-configs/locations.conf.tmpl)).
+([nginx-render](docker-compose.yml:46) → [locations.conf.tmpl](nginx-configs/locations.conf.tmpl)).
 
 **Confirmed implementation risk (previously flagged as open):** the renderer
 ([render-templates.sh](template_rendering/render-templates.sh)) is plain `envsubst` over an
@@ -171,7 +171,7 @@ Two options:
 **Recommend (B).** It was designed for.
 
 Whichever is chosen: new vars must be added to the `VARS` allowlist
-([docker-compose.yml:40](docker-compose.yml:40)), and nginx runtime `$variables` must stay out of
+([docker-compose.yml:58](docker-compose.yml:58)), and nginx runtime `$variables` must stay out of
 that allowlist as they do today.
 
 ---
@@ -261,7 +261,7 @@ docs describe exactly this reverse-proxy-header shape, so it is the intended fit
 workaround. A long-standing feature request
 ([#858](https://github.com/navidrome/navidrome/issues/858)) exists but is unreleased.
 
-- **Navidrome** ([docker-compose.yml:180](docker-compose.yml:180)):
+- **Navidrome** ([navidrome/compose.yml](navidrome/compose.yml:3)):
   ```yaml
   ND_REVERSEPROXYUSERHEADER: X-Forwarded-User
   ND_REVERSEPROXYWHITELIST: 172.16.0.0/12   # docker bridge / nginx source
@@ -271,7 +271,7 @@ workaround. A long-standing feature request
   Subsonic apps (DSub, play:Sub, …) keep working via Navidrome's own tokens — gate only the web UI
   and leave the Subsonic API paths ungated. Verify which paths the apps actually hit; `ND_BASEURL`
   is `/music`.
-- **Filebrowser** ([docker-compose.yml:254](docker-compose.yml:254)): built-in `proxy` auth method,
+- **Filebrowser** ([filebrowser/compose.yml](filebrowser/compose.yml:7)): built-in `proxy` auth method,
   set in [settings.json](filebrowser/settings.json) rather than env (the file is mounted read-only
   and seeded by `init.sh`). Switching auth method changes how accounts are provisioned — document
   that existing local accounts behave differently.
@@ -280,25 +280,25 @@ workaround. A long-standing feature request
 
 No nginx auth changes; keep the current proxy blocks. Configure OIDC inside the app.
 
-- **Audiobookshelf** ([docker-compose.yml:166](docker-compose.yml:166)): native OIDC, configured
+- **Audiobookshelf** ([audiobookshelf/compose.yml](audiobookshelf/compose.yml:4)): native OIDC, configured
   in-app (Settings → Authentication). Cleanest case. No compose change beyond possibly an env var.
-- **Jellyfin** ([docker-compose.yml:126](docker-compose.yml:126)): requires the
+- **Jellyfin** ([jellyfin/compose.yml](jellyfin/compose.yml:3)): requires the
   [9p4 SSO plugin](https://github.com/9p4/jellyfin-plugin-sso) — add its plugin repo, install,
   configure the provider. This is manual first-run config that compose cannot declare; the setup
   guide must walk through it. **The main testing cost is confirming TV/mobile clients still
   authenticate**, not the browser. The LDAP-plugin alternative is unavailable (lldap is not
   reachable off the office server).
 
-## docker-compose.yml changes
+## Compose changes
 
 - New `oauth2-proxy` service behind a compose profile, matching the existing optional-service
-  pattern. Needs `OAUTH2_PROXY_COOKIE_SECRET`, the client id/secret, and
+  pattern (its own `oauth2-proxy/compose.yml`, included from the root `docker-compose.yml`). Needs `OAUTH2_PROXY_COOKIE_SECRET`, the client id/secret, and
   `--oidc-issuer-url=https://keycloak.mlev.net/realms/officeserver`. **No `depends_on` against
   Keycloak** (cold-start 503s; different box).
 - Conditional env vars in the `navidrome` block (`ND_REVERSEPROXY*`), defaulted so `_AUTH=none`
   injects nothing functional.
 - Loopback-bind or remove published ports for any gated service (see the caveat section).
-- New vars threaded into [nginx-render](docker-compose.yml:28)'s `VARS` allowlist.
+- New vars threaded into [nginx-render](docker-compose.yml:46)'s `VARS` allowlist.
 
 ## env-setup.sh / env-lib.sh changes
 
@@ -316,7 +316,7 @@ Add an auth block to [env-setup.sh](env-setup.sh) after service selection:
 
 All new vars go through the existing `write_env` in [env-lib.sh](env-lib.sh) — extend its var list.
 
-## New file: SSOSetupGuide.md
+## New file: docs/SSOSetupGuide.md
 
 Follow the `*SetupGuide.md` pattern. Cover:
 

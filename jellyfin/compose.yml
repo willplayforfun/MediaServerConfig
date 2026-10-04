@@ -1,0 +1,18 @@
+services:
+  # ── Jellyfin ───────────────────────────────────────────────────────────────
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    profiles: ["jellyfin"]
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ${MEDIA_ROOT:?run env-setup.sh}/movies:/media/movies:ro
+      - ${MEDIA_ROOT:?run env-setup.sh}/tv:/media/tv:ro
+    devices:
+      - /dev/dri:/dev/dri    # Intel Quick Sync
+    environment:
+      - JELLYFIN_PublishedServerUrl=https://${DOMAIN}/jellyfin

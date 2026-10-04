@@ -1,39 +1,28 @@
 #!/bin/bash
 # install-hdmi-audio-fix.sh
-# Fixes silent HDMI audio on Intel iGPUs caused by a boot-time driver race.
+# Fixes silent HDMI audio on Intel graphics.
 #
-# Symptom: HDMI video works, the display's EDID advertises audio, but every
-# /proc/asound/card*/eld#* reads eld_valid 0, speaker-test on the hdmi:
-# devices is silent, and dmesg shows "HDMI: pin NID 0x... not registered".
+# Symptom: HDMI video works but there's no sound. Every
+# /proc/asound/card*/eld#* shows eld_valid 0, and dmesg shows
+# "HDMI: pin NID 0x... not registered".
+# Cause: at boot the audio driver sets up before the display is ready, misses
+# the HDMI port, and never picks it up later.
 #
-# Cause: the HDA controller probes the HDMI audio codec before the display
-# side is fully up, and at that moment the codec only exposes some of its
-# pins - so the connected port's pin is never registered, and every later
-# "display connected" notification from i915 is dropped.
-#
-# Two fixes are offered (picking one removes the other):
-#
-#   1) Boot re-probe service (recommended). A systemd oneshot that, once the
-#      DRM HDMI connector exists, runs scripts/hdmi-audio-reprobe.sh: it
-#      removes and rescans the HDA controller's PCI device so it re-probes
-#      with every pin visible. Runs before docker.service, so nothing is
-#      holding the audio device yet. Works even where fixing the load order
-#      alone does not.
-#
-#   2) Module load order. A modprobe softdep so i915 always loads before
-#      snd_hda_intel. Lighter touch, and enough on some hardware - but on
-#      others the race is about how far display init has got rather than
-#      module load order, and only the re-probe helps.
+# Offers one of two fixes (choosing one removes the other):
+#   1) Recommended: a boot service that resets the audio device once the
+#      display is up (hdmi-audio-reprobe.sh), before Docker starts.
+#   2) Load the graphics driver (i915) before the audio driver. Lighter, but
+#      didn't help on this server.
 #
 # Must be run as root on the OMV host.
 #
 # Usage:
-#   sudo /opt/docker/install-hdmi-audio-fix.sh
+#   sudo /opt/docker/host/install-hdmi-audio-fix.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPROBE_SRC="${SCRIPT_DIR}/scripts/hdmi-audio-reprobe.sh"
+REPROBE_SRC="${SCRIPT_DIR}/hdmi-audio-reprobe.sh"
 HELPER=/usr/local/sbin/hdmi-audio-reprobe
 UNIT_NAME=hdmi-audio-reprobe.service
 UNIT=/etc/systemd/system/$UNIT_NAME

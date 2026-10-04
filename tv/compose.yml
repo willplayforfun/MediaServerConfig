@@ -1,24 +1,11 @@
-# TV launcher: a "smart TV" home screen plus full-screen apps for a display
-# plugged into the server's HDMI output (see OperationsGuide.md).
-#
-#  - tv-hub (profile "tv", always running): serves the launcher page,
-#    switches apps, reads the remote, and sleeps/wakes the display.
-#  - tv-home / tv-youtube / ... (profile "tv-apps"): one container per app.
-#    Each renders straight to DRM/KMS with no compositor, so only one may run
-#    at a time and only the hub starts them. "tv-apps" is never added to
-#    COMPOSE_PROFILES, so a plain `docker compose up` (what OMV runs on boot)
-#    never starts two at once and fights over the GPU. They still need
-#    creating once (env-setup.sh offers to):
-#      docker compose --profile tv-apps create
-#
-# Adding an app: give it a service in the "tv-apps" profile and add
-# <name>=<container_name> to the hub's APPS. Tile labels/colours for known
-# names live in hub/app.py's APP_META.
+# TV launcher: a smart-TV home screen on the server's HDMI output.
+# tv-hub (profile "tv") switches between the app containers (profile
+# "tv-apps"). Only one app can own the display, so "tv-apps" is never in
+# COMPOSE_PROFILES and only the hub starts them. Create them once with:
+#   docker compose --profile tv-apps create
+# Adding an app: a "tv-apps" service, plus <name>=<container_name> in APPS.
 
 x-tv-browser: &tv-browser
-  # Relative to this file (tv/compose.yml), not the root docker-compose.yml
-  # that includes it - Compose's `include:` resolves relative paths against
-  # the included file's own directory.
   build:
     context: ./browser
   image: homeserver-tv-browser:local
@@ -35,8 +22,7 @@ x-tv-browser: &tv-browser
     - audio
   volumes:
     - /etc/localtime:/etc/localtime:ro
-    # libinput classifies input devices from the live udev database.
-    - /run/udev:/run/udev:ro
+    - /run/udev:/run/udev:ro   # libinput needs it to see input devices
 
 services:
   tv-hub:
@@ -49,31 +35,26 @@ services:
     restart: unless-stopped
     environment:
       - APPS=home=tv-home,youtube=tv-youtube
-      # Set by env-setup.sh. REMOTE_DEVICES blank = watch every input device.
-      - REMOTE_DEVICES=${REMOTE_DEVICES:-}
+      - REMOTE_DEVICES=${REMOTE_DEVICES:-}   # blank = every input device
       - HOME_KEY=${HOME_KEY:-KEY_HOMEPAGE}
       - SLEEP_KEY=${SLEEP_KEY:-}
       - HOME_IDLE_MINUTES=${TV_HOME_IDLE_MINUTES:-10}
       - APP_IDLE_MINUTES=${TV_APP_IDLE_MINUTES:-240}
       - BOOT_STATE=${TV_BOOT_STATE:-home}
-    # docker.sock is root-equivalent control of the host, and SYS_ADMIN is
-    # what the console-blanking ioctl needs. Acceptable because the hub's
-    # port is never published - it's reachable only from containers on this
-    # compose project's network, never from the LAN.
+    # docker.sock and SYS_ADMIN (for console blanking) are root-equivalent.
+    # Acceptable only because the hub's port is never published.
     cap_add:
       - SYS_ADMIN
     devices:
       - /dev/tty1:/dev/tty1
-    # /dev/input is bind-mounted (rather than passed with `devices:`) plus a
-    # cgroup rule for the input major number, so a remote plugged in after
-    # the hub started still shows up.
+    # Bind mount plus a cgroup rule rather than `devices:`, so a remote
+    # plugged in after the hub started still shows up.
     device_cgroup_rules:
       - "c 13:* r"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/input:/dev/input:ro
-      # Docker masks the container's /proc/asound; the host's tells the hub
-      # whether audio is playing before an idle sleep.
+      # Docker masks the container's own /proc/asound.
       - /proc/asound:/host/asound:ro
 
   tv-home:
@@ -88,8 +69,7 @@ services:
     container_name: tv-youtube
     environment:
       - COG_URL=https://www.youtube.com/tv
-      # youtube.com/tv redirects anything that doesn't look like a TV. This
-      # is a Cobalt (YouTube's own TV runtime) user agent.
+      # youtube.com/tv only serves TV user agents; this is Cobalt's.
       - COG_USER_AGENT=${YOUTUBE_USER_AGENT:-Mozilla/5.0 (Linux armeabi-v7a; Android 9) Cobalt/23.lts.4.308522-gold (unlike Gecko) v8/8.8.278.17-jit gles Starboard/14, Generic_TV_Model/1.0 (Generic, TV, Wired)}
       - AUDIO_DEVICE=${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}
       - XDG_DATA_HOME=/data
@@ -97,5 +77,4 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /run/udev:/run/udev:ro
-      # Keeps the YouTube sign-in across launches.
-      - ./data/youtube:/data
+      - ./data/youtube:/data   # keeps the YouTube sign-in

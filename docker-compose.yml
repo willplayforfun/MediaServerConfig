@@ -1,7 +1,20 @@
-# tv/compose.yml defines the TV launcher: the tv-hub home screen and
-# the full-screen apps it switches between - see the comments in that file.
+# Core infrastructure (reverse proxy, TLS, DNS) is defined in this file and
+# always runs. Each optional service lives in its own directory with its own
+# compose.yml, enabled through its profile in COMPOSE_PROFILES (env-setup.sh
+# sets that). Relative paths in an included file resolve against that file's
+# directory, so e.g. ./config in jellyfin/compose.yml means jellyfin/config.
 include:
+  - jellyfin/compose.yml
+  - plex/compose.yml
+  - universalmediaserver/compose.yml
+  - navidrome/compose.yml
+  - audiobookshelf/compose.yml
+  - stash/compose.yml
+  - filebrowser/compose.yml
+  - fileflows/compose.yml
+  # HDMI display apps - env-setup.sh enables at most one of these.
   - tv/compose.yml
+  - kodi/compose.yml
 
 services:
   # ── Helpsite Render ────────────────────────────────────────────────────────
@@ -127,268 +140,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     entrypoint: ["/bin/sh", "/certbot-renew.sh"]
 
-  # ── Jellyfin ───────────────────────────────────────────────────────────────
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    container_name: jellyfin
-    profiles: ["jellyfin"]
-    restart: unless-stopped
-    ports:
-      - "8096:8096"
-    volumes:
-      - ./jellyfin/config:/config
-      - ./jellyfin/cache:/cache
-      - /srv/mergerfs/media/movies:/media/movies:ro
-      - /srv/mergerfs/media/tv:/media/tv:ro
-    devices:
-      - /dev/dri:/dev/dri    # Intel Quick Sync
-    environment:
-      - JELLYFIN_PublishedServerUrl=https://${DOMAIN}/jellyfin
-
-  # ── Plex ───────────────────────────────────────────────────────────────────
-  # Nginx terminates TLS on ${PLEX_HTTPS_PORT} and proxies Plex at the root
-  # (Plex can't live under a subpath like /jellyfin).
-  plex:
-    image: plexinc/pms-docker:latest
-    container_name: plex
-    profiles: ["plex"]
-    restart: unless-stopped
-    volumes:
-      - ./plex/config:/config
-      - ./plex/transcode:/transcode
-      - /srv/mergerfs/media/movies:/media/movies:ro
-      - /srv/mergerfs/media/tv:/media/tv:ro
-    devices:
-      - /dev/dri:/dev/dri    # Intel Quick Sync (shared with Jellyfin)
-    environment:
-      # One-time claim token from https://www.plex.tv/claim (set by env-setup)
-      - PLEX_CLAIM=${PLEX_CLAIM:-}
-      - ADVERTISE_IP=https://${DOMAIN}:${PLEX_HTTPS_PORT}/
-      - TZ=${TZ:-Etc/UTC}
-
-  # ── Audiobookshelf ─────────────────────────────────────────────────────────
-  # Hardcoded /audiobookshelf base path. Works out of the box.
-  audiobookshelf:
-    image: ghcr.io/advplyr/audiobookshelf:latest
-    container_name: audiobookshelf
-    profiles: ["audiobookshelf"]
-    restart: unless-stopped
-    ports:
-      - "13378:80"
-    volumes:
-      - ./audiobookshelf/config:/config
-      - ./audiobookshelf/metadata:/metadata
-      - /srv/mergerfs/media/audiobooks:/audiobooks
-      - /srv/mergerfs/media/podcasts:/podcasts
-  
-  # ── Navidrome ─────────────────────────────────────────────────────────
-  navidrome:
-    image: deluan/navidrome:latest
-    container_name: navidrome
-    profiles: ["navidrome"]
-    restart: unless-stopped
-    ports:
-        - "4533:4533"
-    volumes:
-        - ./navidrome/data:/data
-        - /srv/mergerfs/media/music:/music:ro
-    environment:
-        ND_SCANSCHEDULE: 1h
-        ND_LOGLEVEL: info
-        ND_BASEURL: /music
-  
-  # ── Stash ──────────────────────────────────────────────────────────────────
-  stash:
-    image: stashapp/stash:latest
-    container_name: stash
-    profiles: ["stash"]
-    restart: unless-stopped
-    ports:
-      - "9999:9999"
-    logging:
-      driver: "json-file"
-      options:
-        max-file: "10"
-        max-size: "2m"
-    environment:
-      - STASH_STASH=/data/
-      - STASH_GENERATED=/generated/
-      - STASH_METADATA=/metadata/
-      - STASH_CACHE=/cache/
-      - STASH_PORT=9999
-    networks:
-      default: {}
-      stash-chrome-net: {}
-    volumes:
-      - /srv/mergerfs/media/extra/media:/data/media
-      - /etc/localtime:/etc/localtime:ro
-      - ./stash/config:/root/.stash
-      - ./stash/metadata:/metadata
-      - ./stash/cache:/cache
-      - ./stash/blobs:/blobs
-      - ./stash/generated:/generated
-
-  # ── Stash Chrome (headless, for CDP-based scrapers) ───────────────────────
-  # Sidecar so JS-driven scrapers (useCDP: true in CommunityScrapers) have a
-  # real browser to render pages with, without baking Chromium into the Stash
-  # image. Must run with its default entrypoint (no command override) — the
-  # image's own socat proxy is what makes port 9222 reachable from outside
-  # the container; Chromium itself only ever binds CDP to loopback.
-  #
-  # Chrome's DevTools HTTP handler rejects any request whose Host header
-  # isn't a literal IP or "localhost" (anti-DNS-rebinding hardening, no
-  # override flag exists), so a service-name hostname will NOT work here —
-  # it needs the static IP below.
-  # In Stash: Settings -> System -> Scraping -> Chrome CDP Path ->
-  #   http://172.28.1.10:9222/json/version
-  stash-chrome:
-    image: chromedp/headless-shell:latest
-    container_name: stash-chrome
-    profiles: ["stash"]
-    restart: unless-stopped
-    shm_size: "2gb"
-    init: true
-    networks:
-      stash-chrome-net:
-        ipv4_address: 172.28.1.10
-
-  # ── Filebrowser ────────────────────────────────────────────────────────────
-  # Web-based file browser. Root directory is controlled by FILEBROWSER_ROOT
-  # in .env — point it at whatever SMB share OMV exposes (e.g. /srv/mergerfs/media/share).
-  # Database and user accounts are persisted in ./filebrowser/data/ at runtime.
-  filebrowser:
-    image: filebrowser/filebrowser:latest
-    container_name: filebrowser
-    profiles: ["filebrowser"]
-    user: root
-    restart: unless-stopped
-    entrypoint: ["/bin/sh", "/init.sh"]
-    ports:
-      - "8085:80"
-    environment:
-      - INITIAL_FILEBROWSER_PASSWORD=${INITIAL_FILEBROWSER_PASSWORD}
-    volumes:
-      - ${FILEBROWSER_ROOT:-/srv/mergerfs/media}:/srv
-      - ./filebrowser/data:/database
-      - ./filebrowser/settings.json:/config/settings.json:ro
-      - ./filebrowser/init.sh:/init.sh:ro
-
-  # ── FileFlows ──────────────────────────────────────────────────────────────
-  # Media file processing workflows (transcode, rename, move, etc.).
-  # FileFlows doesn't support being served under an nginx subpath (its SPA
-  # redirects to absolute root paths like /initial-config), so like Bazarr
-  # it's accessed directly via its published port rather than proxied.
-  # Hardware encoding via /dev/dri mirrors Jellyfin's Quick Sync setup.
-  fileflows:
-    image: revenz/fileflows:latest
-    container_name: fileflows
-    profiles: ["fileflows"]
-    restart: unless-stopped
-    ports:
-      - "19200:5000"
-    environment:
-      - TZ=${TZ:-Etc/UTC}
-      - PUID=1000
-      - PGID=1000
-    volumes:
-      - ./fileflows/data:/app/Data
-      - /srv/mergerfs/media:/media
-    devices:
-      - /dev/dri:/dev/dri    # Hardware encoding (optional, mirrors Jellyfin)
-
-  # ── Universal Media Server ───────────────────────────────────────────────
-  # DLNA/UPnP server. DLNA discovery uses SSDP multicast, 
-  # which does not cross Docker's bridge network, so this runs
-  # with host networking.
-  universalmediaserver:
-    image: universalmediaserver/ums:latest
-    container_name: universalmediaserver
-    profiles: ["universalmediaserver"]
-    depends_on:
-      universalmediaserver-init:
-        condition: service_completed_successfully
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      # Tells UMS to read/write UMS.conf and its database under /profile.
-      - UMS_PROFILE=/profile
-    devices:
-      - /dev/dri:/dev/dri    # Quick Sync for MPEG2/H.264 encode
-    volumes:
-      - ./universalmediaserver/config:/profile
-      - ./universalmediaserver/renderers/DeoVR.conf:/profile/renderers/DeoVR.conf:ro
-      - /srv/mergerfs/media/vr:/media:ro
-
-  # One-shot. SHARED.conf and UMS.conf are live application state (UMS
-  # rewrites them as settings change), so they get seeded in on first run.
-  universalmediaserver-init:
-    image: alpine:latest
-    container_name: universalmediaserver-init
-    profiles: ["universalmediaserver"]
-    environment:
-      - UMS_NETWORK_INTERFACE=${UMS_NETWORK_INTERFACE}
-    volumes:
-      - ./universalmediaserver/SHARED.conf:/seed/SHARED.conf:ro
-      - ./universalmediaserver/config:/profile
-    entrypoint:
-      - sh
-      - -c
-      - |
-        cp -n /seed/SHARED.conf /profile/SHARED.conf
-        if [ ! -f /profile/UMS.conf ] && [ -n "$$UMS_NETWORK_INTERFACE" ]; then
-          printf 'network_interface = %s\n' "$$UMS_NETWORK_INTERFACE" > /profile/UMS.conf
-        fi
-    restart: "no"
-
-  # ── Kodi ───────────────────────────────────────────────────────────────────
-  # Media center front-end, rendering directly to the HDMI output via the GBM
-  # windowing system (DRM/KMS) - no X11/Wayland session involved, so this runs
-  # straight from a TTY-equivalent context inside the container. Needs the DRI
-  # node for GPU/VAAPI rendering on the Intel iGPU, the snd node for ALSA
-  # audio, and the input node for a locally attached keyboard/remote.
-  # `init: true` is required so PID 1 reaps subprocesses correctly under GBM.
-  # Kodi 21+ ships one binary for all windowing back ends (the image's default
-  # CMD targets an older separate kodi-gbm binary that no longer exists), so
-  # --windowing=gbm is what actually selects DRM/KMS output; --standalone
-  # skips the login/profile screen for an appliance-style boot straight into
-  # the home screen.
-  # Alternative to the TV launcher (tv/compose.yml), not alongside it: both
-  # drive the HDMI output directly, so env-setup.sh only enables one.
-  kodi:
-    build:
-      context: ./kodi
-      dockerfile: Dockerfile
-    image: homeserver-kodi:local
-    pull_policy: never
-    container_name: kodi
-    profiles: ["kodi"]
-    restart: unless-stopped
-    init: true
-    command: ["/usr/bin/kodi-standalone", "--windowing=gbm"]
-    devices:
-      - /dev/dri:/dev/dri       # Intel iGPU (VAAPI render + DRM/KMS display)
-      - /dev/snd:/dev/snd       # ALSA audio out
-      - /dev/input:/dev/input   # local keyboard/remote
-    group_add:
-      - video
-    ports:
-      - "8080:8080"    # Kodi web interface
-      - "9090:9090"    # JSON-RPC control (Kore and other remotes)
-      - "9777:9777/udp" # EventServer (legacy remotes)
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      # Kodi's GBM build reads input through libinput, which classifies
-      # /dev/input event nodes (keyboard vs. remote vs. mouse) via udev
-      # device properties rather than the raw nodes alone - without the
-      # host's live udev database mounted in, libinput enumerates zero
-      # devices and no HID input reaches Kodi even though /dev/input is
-      # passed through below.
-      - /run/udev:/run/udev:ro
-      - ./kodi/config:/root/.kodi
-      - /srv/mergerfs/media/movies:/media/movies:ro
-      - /srv/mergerfs/media/tv:/media/tv:ro
-      - /srv/mergerfs/media/music:/media/music:ro
-
   # ── No-IP (Dynamic DNS Update Client) ─────────────────────────────────────
   noip-duc:
     image: noipcom/noip-duc:latest
@@ -414,8 +165,8 @@ services:
     network_mode: host   # needed so it can detect your real public IP
 
   # ── dnsmasq (local DNS) ────────────────────────────────────────────────────
-  # The address mapping at ./dnsmasq/conf.d/local.conf is generated by
-  # dnsmasq-render from ./dnsmasq/templates/local.conf.tmpl on each `up`.
+  # The address mapping at ./dnsmasq-rendered/local.conf is generated by
+  # dnsmasq-render from ./dnsmasq/local.conf.tmpl on each `up`.
   dnsmasq:
     image: dockurr/dnsmasq:latest
     container_name: dnsmasq
@@ -457,13 +208,3 @@ services:
       - OPNSENSE_TLS_VERIFY=${OPNSENSE_TLS_VERIFY:-false}
     volumes:
       - ./scripts/sync-internal-dns.py:/scripts/sync-internal-dns.py:ro
-
-# ── Networks ───────────────────────────────────────────────────────────────
-networks:
-  # Fixed subnet so stash-chrome gets a stable IP (see comment on that
-  # service) — Chrome's CDP HTTP handler only accepts a literal IP or
-  # "localhost" as the Host header, so it can't be reached by service name.
-  stash-chrome-net:
-    ipam:
-      config:
-        - subnet: 172.28.1.0/24

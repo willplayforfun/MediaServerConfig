@@ -27,10 +27,11 @@ CF_API_TOKEN=""
 LOCAL_IP=""
 DNS1="1.1.1.1"
 DNS2="8.8.8.8"
+MEDIA_ROOT="/srv/mergerfs/media"
 COMPOSE_PROFILES=""
 PLEX_CLAIM=""
 PLEX_HTTPS_PORT="8443"
-FILEBROWSER_ROOT="/srv/mergerfs/media/share"
+FILEBROWSER_ROOT=""
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
 UMS_NETWORK_INTERFACE=""
 REMOTE_DEVICES=""
@@ -251,6 +252,18 @@ fi
 DNS1="${DNS1:-1.1.1.1}"
 DNS2="${DNS2:-8.8.8.8}"
 
+# --- MEDIA_ROOT -------------------------------------------------------------
+echo
+ask MEDIA_ROOT "Media pool path (the folder holding movies/, tv/, music/, ...)"
+while [ -z "${MEDIA_ROOT}" ]; do
+    read -r -p "  Path cannot be empty. Try again: " MEDIA_ROOT
+done
+MEDIA_ROOT="${MEDIA_ROOT%/}"
+if [ ! -d "${MEDIA_ROOT}" ]; then
+    echo "  Note: ${MEDIA_ROOT} doesn't exist yet - create the mergerfs pool before"
+    echo "  starting the stack."
+fi
+
 # --- Service selection ------------------------------------------------------
 echo
 echo "Select which services to enable (press Enter to accept the default):"
@@ -407,15 +420,13 @@ case ",${COMPOSE_PROFILES}," in
 esac
 
 # --- Write .env -------------------------------------------------------------
-FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media}"
+FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-${MEDIA_ROOT}/share}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 write_env "${ENV_FILE}"
 
 # --- Create tv-apps containers (only when the TV launcher is enabled) --------
-# The TV apps (tv-home, tv-youtube, ...) live in the "tv-apps" profile so a
-# plain `docker compose up` never starts them - only the hub does, one at a
-# time (see tv/compose.yml). They still have to be created once so the hub
-# has containers to start.
+# `compose up` never starts the "tv-apps" profile, so the hub needs them
+# created once.
 case ",${COMPOSE_PROFILES}," in
     *,tv,*)
         echo
@@ -441,9 +452,8 @@ case ",${COMPOSE_PROFILES}," in
 esac
 
 # --- Remove the display app that isn't enabled -------------------------------
-# Disabling a profile doesn't stop containers it already created, and the
-# TV launcher and Kodi can't share the HDMI output - so offer to remove the
-# other one's containers (config on disk is kept).
+# Disabling a profile leaves its containers behind, and the TV launcher and
+# Kodi would fight over the display.
 case ",${COMPOSE_PROFILES}," in
     *,tv,*)   _retire=(kodi) ;;
     *,kodi,*) _retire=(tv-hub tv-home tv-youtube) ;;

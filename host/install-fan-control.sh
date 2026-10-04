@@ -6,7 +6,7 @@
 # Must be run as root on the OMV host.
 #
 # Usage:
-#   sudo /opt/docker/install-fan-control.sh
+#   sudo /opt/docker/host/install-fan-control.sh
 
 set -euo pipefail
 

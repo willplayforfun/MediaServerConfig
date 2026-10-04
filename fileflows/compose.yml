@@ -1,0 +1,23 @@
+services:
+  # ── FileFlows ──────────────────────────────────────────────────────────────
+  # Media file processing workflows (transcode, rename, move, etc.).
+  # FileFlows doesn't support being served under an nginx subpath (its SPA
+  # redirects to absolute root paths like /initial-config), so it's accessed
+  # directly via its published port rather than proxied.
+  # Hardware encoding via /dev/dri mirrors Jellyfin's Quick Sync setup.
+  fileflows:
+    image: revenz/fileflows:latest
+    container_name: fileflows
+    profiles: ["fileflows"]
+    restart: unless-stopped
+    ports:
+      - "19200:5000"
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ./data:/app/Data
+      - ${MEDIA_ROOT:?run env-setup.sh}:/media
+    devices:
+      - /dev/dri:/dev/dri    # Hardware encoding (optional, mirrors Jellyfin)

@@ -1,8 +1,7 @@
 #!/bin/bash
 # Clear an Audiobookshelf user's password by setting pash to NULL.
 # Runs sqlite3 via a temporary Docker container so the host needs no extra tools.
-# Usage: ./abs-reset-user.sh <username>
-# Run from: /opt/docker/
+# Usage: bash audiobookshelf/reset-password.sh <username>
 
 set -euo pipefail
 

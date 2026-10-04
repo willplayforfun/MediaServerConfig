@@ -96,21 +96,21 @@ Either with a keyboard connected to the server or via SSH:
 ### Fan Speed Control (optional)
 
 To set up quiet, temperature-responsive fan curves:
-- Run `bash /opt/docker/install-fan-control.sh`
+- Run `bash /opt/docker/host/install-fan-control.sh`
 
 But it won't work on all hardware, so don't be bummed if it fails out.
 
 ### HDMI Audio Fix (optional)
 
 If the server drives a display over HDMI (Intel iGPU) and video works but there's no sound:
-- Run `bash /opt/docker/install-hdmi-audio-fix.sh` and pick a fix (the boot re-probe service is the recommended default)
+- Run `bash /opt/docker/host/install-hdmi-audio-fix.sh` and pick a fix (the boot re-probe service is the recommended default)
 
 It fixes a boot-time race where the audio driver sets up before the display is ready and misses the HDMI port. See the script's header for how to recognise the problem.
 
 ### Install OMV-Extras
 
 Still with a keyboard connected or via SSH:
-- Run `bash /opt/docker/install-omv-extras.sh`
+- Run `bash /opt/docker/host/install-omv-extras.sh`
 
 Now refresh the OMV web UI. New options will appear under System → Plugins. 
 
@@ -291,14 +291,14 @@ See the individual guides for
 - [Universal Media Server](UniversalMediaServerSetupGuide.md)
 - [Navidrome](NavidromeSetupGuide.md)
 - [Audiobookshelf](AudiobookshelfSetupGuide.md)
-- [Filebrowser](FilebrowserSetupGuide.md)
+- [Filebrowser](FilebrowserGuide.md)
 
 Note that only one option for direct display from the server is possible at a time; you can choose to use my hand-rolled TV app OR Kodi, but not both.
 
 # Troubleshooting
 
-If you are using the TV app or Kodi, and having issues with audio over HDMI, try running `install-hdmi-audio-fix.sh`.
+If you are using the TV app or Kodi, and having issues with audio over HDMI, try running `host/install-hdmi-audio-fix.sh`.
 
-If you want to try having your server fans run quieter, run `install-fan-control.sh`. This is untested, and unfortunately H110 motherboards don't support adjusting fan speed. I ultimately added a physical fan speed controller to my build.
+If you want to try having your server fans run quieter, run `host/install-fan-control.sh`. This is untested, and unfortunately H110 motherboards don't support adjusting fan speed. I ultimately added a physical fan speed controller to my build.
 
 Use `scripts/display-diagnose.sh` to get a good set of diagnostics for debugging HDMI output issues with an AI.

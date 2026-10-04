@@ -1,0 +1,15 @@
+services:
+  # ── Audiobookshelf ─────────────────────────────────────────────────────────
+  # Hardcoded /audiobookshelf base path. Works out of the box.
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    profiles: ["audiobookshelf"]
+    restart: unless-stopped
+    ports:
+      - "13378:80"
+    volumes:
+      - ./config:/config
+      - ./metadata:/metadata
+      - ${MEDIA_ROOT:?run env-setup.sh}/audiobooks:/audiobooks
+      - ${MEDIA_ROOT:?run env-setup.sh}/podcasts:/podcasts

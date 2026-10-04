@@ -1,5 +1,4 @@
-# Stdlib only (see app.py) - no pip install step needed, matches the
-# internal-dns-init service's convention in the main docker-compose.yml.
+# Stdlib only, so no pip install.
 FROM python:3.13-alpine
 
 COPY app.py launcher.html /app/

@@ -1,0 +1,16 @@
+services:
+  # ── Navidrome ──────────────────────────────────────────────────────────────
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    profiles: ["navidrome"]
+    restart: unless-stopped
+    ports:
+      - "4533:4533"
+    volumes:
+      - ./data:/data
+      - ${MEDIA_ROOT:?run env-setup.sh}/music:/music:ro
+    environment:
+      ND_SCANSCHEDULE: 1h
+      ND_LOGLEVEL: info
+      ND_BASEURL: /music

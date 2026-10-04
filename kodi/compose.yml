@@ -1,0 +1,37 @@
+services:
+  # ── Kodi ───────────────────────────────────────────────────────────────────
+  # Renders straight to the HDMI output (DRM/KMS, no X11/Wayland). An
+  # alternative to the TV launcher, not alongside it: both drive the display,
+  # so env-setup.sh only enables one.
+  kodi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: homeserver-kodi:local
+    pull_policy: never
+    container_name: kodi
+    profiles: ["kodi"]
+    restart: unless-stopped
+    init: true   # PID 1 must reap Kodi's subprocesses under GBM
+    # The image's default CMD runs a kodi-gbm binary that Kodi 21+ no longer
+    # ships; --windowing=gbm is what selects DRM/KMS output now.
+    command: ["/usr/bin/kodi-standalone", "--windowing=gbm"]
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/snd:/dev/snd
+      - /dev/input:/dev/input
+    group_add:
+      - video
+    ports:
+      - "8080:8080"    # Kodi web interface
+      - "9090:9090"    # JSON-RPC control (Kore and other remotes)
+      - "9777:9777/udp" # EventServer (legacy remotes)
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      # libinput finds input devices through the udev database; without it
+      # Kodi gets no keyboard/remote input even with /dev/input passed in.
+      - /run/udev:/run/udev:ro
+      - ./config:/root/.kodi
+      - ${MEDIA_ROOT:?run env-setup.sh}/movies:/media/movies:ro
+      - ${MEDIA_ROOT:?run env-setup.sh}/tv:/media/tv:ro
+      - ${MEDIA_ROOT:?run env-setup.sh}/music:/media/music:ro

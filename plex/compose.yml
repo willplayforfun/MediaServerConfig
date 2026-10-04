@@ -1,0 +1,21 @@
+services:
+  # ── Plex ───────────────────────────────────────────────────────────────────
+  # Nginx terminates TLS on ${PLEX_HTTPS_PORT} and proxies Plex at the root
+  # (Plex can't live under a subpath like /jellyfin).
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    profiles: ["plex"]
+    restart: unless-stopped
+    volumes:
+      - ./config:/config
+      - ./transcode:/transcode
+      - ${MEDIA_ROOT:?run env-setup.sh}/movies:/media/movies:ro
+      - ${MEDIA_ROOT:?run env-setup.sh}/tv:/media/tv:ro
+    devices:
+      - /dev/dri:/dev/dri    # Intel Quick Sync (shared with Jellyfin)
+    environment:
+      # One-time claim token from https://www.plex.tv/claim (set by env-setup)
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
+      - ADVERTISE_IP=https://${DOMAIN}:${PLEX_HTTPS_PORT}/
+      - TZ=${TZ:-Etc/UTC}

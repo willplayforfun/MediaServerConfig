@@ -19,11 +19,11 @@ The server can be made accessible to the wider internet by forwarding two ports 
 
 # Getting Started
 
-If you have a machine ready to turn into a home server, follow [this setup guide](SoftwareGuide.md).
+If you have a machine ready to turn into a home server, follow [this setup guide](docs/SoftwareGuide.md).
 
-If you need to build or refit a machine, follow [this build guide](HardwareGuide.md). 
+If you need to build or refit a machine, follow [this build guide](docs/HardwareGuide.md). 
 
-For details on operating a server after setup, see [this ops guide](OperationsGuide.md).
+For details on operating a server after setup, see [this ops guide](docs/OperationsGuide.md).
 
 # Conceptual Overview
 
