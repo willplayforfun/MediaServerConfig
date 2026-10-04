@@ -181,9 +181,9 @@ services:
     profiles: ["noip"]
     restart: unless-stopped
     environment:
-      - NOIP_USERNAME=${NOIP_USERNAME}
-      - NOIP_PASSWORD=${NOIP_PASSWORD}
-      - NOIP_HOSTNAMES=${NOIP_HOSTNAMES}
+      - NOIP_USERNAME=${NOIP_USERNAME:-}
+      - NOIP_PASSWORD=${NOIP_PASSWORD:-}
+      - NOIP_HOSTNAMES=${NOIP_HOSTNAMES:-}
     network_mode: host   # needed so it can detect your real public IP
 
   # ── Cloudflare DDNS ────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ services:
     profiles: ["cloudflare"]
     restart: unless-stopped
     environment:
-      - CF_API_TOKEN=${CF_API_TOKEN}
+      - CF_API_TOKEN=${CF_API_TOKEN:-}
       - DOMAINS=${DOMAIN}
       - PROXIED=false
     network_mode: host   # needed so it can detect your real public IP
