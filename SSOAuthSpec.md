@@ -311,10 +311,11 @@ Add an auth block to [env-setup.sh](env-setup.sh) after service selection:
 - Per enabled service that can do SSO, prompt for its mode, default `none`. **Only offer modes the
   service supports** — don't offer `forward` for Jellyfin.
 - Warn when a gated service still publishes a host port.
-- Seed all new vars with defaults at the top (matching the existing seed block at
-  [env-setup.sh:20](env-setup.sh:20)) so `write_env` always has them.
 
-All new vars go through the existing `write_env` in [env-lib.sh](env-lib.sh) — extend its var list.
+Fit this to the service modules (see "Service modules" in [env-lib.sh](env-lib.sh)): the shared
+settings (issuer, client id/secret, cookie secret) go in an `oauth2-proxy/env.sh` module, and each
+service's `*_AUTH` mode goes in that service's own `env.sh` (`_defaults`, `_prompt`, `_validate` and
+`_env` hooks), so `write_env` picks them up without changes.
 
 ## New file: docs/SSOSetupGuide.md
 

@@ -11,7 +11,9 @@
 #   DOMAIN            full public FQDN (e.g. myserver.ddns.net, home.example.com)
 #   COMPOSE_PROFILES  comma-separated list of enabled service profiles
 #                     (empty = only infrastructure; a warning is printed)
-#                     include the DNS provider profile (noip or cloudflare) here
+#                     include the DNS provider profile (noip or cloudflare) here.
+#                     Only one display app (tv, kodi) can run; if both are
+#                     listed, kodi is dropped with a warning.
 #
 # Provider-specific required vars:
 #   DNS_PROVIDER=noip:        NOIP_USERNAME, NOIP_PASSWORD
@@ -27,19 +29,9 @@
 #     OPNSENSE_API_SECRET; optional OPNSENSE_TLS_VERIFY (default: false)
 #   MEDIA_ROOT                    media pool holding movies/, tv/, music/, ...
 #                                  (default: /srv/mergerfs/media)
-#   PLEX_CLAIM                    claim token from plex.tv/claim (default: empty)
-#   PLEX_HTTPS_PORT               nginx TLS port for Plex (default: 8443)
-#   FILEBROWSER_ROOT              filebrowser root path (default: ${MEDIA_ROOT}/share)
-#   INITIAL_FILEBROWSER_PASSWORD  initial filebrowser admin password (default: hellofilebrowser)
-#   UMS_NETWORK_INTERFACE         host LAN interface for UMS's DLNA/UPnP discovery
-#   REMOTE_DEVICES                comma-separated stable /dev/input/by-id/... paths the
-#                                  TV launcher hub reads the remote from
-#                                  (default: empty - watch every input device)
-#   HOME_KEY                      evdev key name or code of the remote's Home button
-#                                  (default: KEY_HOMEPAGE)
-#   SLEEP_KEY                     optional key that turns the TV display off (default: empty)
-#   TV_AUDIO_DEVICE               ALSA device the TV apps play sound on
-#                                  (default: hdmi:CARD=PCH,DEV=0)
+#
+# Service settings (Plex's port, the TV remote, ...) are optional too. Each
+# service's env.sh lists them, with their defaults, in its _defaults hook.
 #
 # Exit codes:
 #   0  .env written successfully
@@ -52,8 +44,6 @@ ENV_FILE="${SCRIPT_DIR}/.env"
 
 # shellcheck source=env-lib.sh
 source "${SCRIPT_DIR}/env-lib.sh"
-
-fail() { echo "Error: $*" >&2; exit 1; }
 
 # --- Required inputs ---------------------------------------------------------
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
@@ -69,21 +59,18 @@ COMPOSE_PROFILES="${COMPOSE_PROFILES:-}"
     || echo "Warning: COMPOSE_PROFILES is empty; only infrastructure containers will start." >&2
 
 # --- Provider-specific required inputs ---------------------------------------
-NOIP_USERNAME=""
-NOIP_PASSWORD=""
+NOIP_USERNAME="${NOIP_USERNAME:-}"
+NOIP_PASSWORD="${NOIP_PASSWORD:-}"
 NOIP_HOSTNAMES=""
-CF_API_TOKEN=""
+CF_API_TOKEN="${CF_API_TOKEN:-}"
 
 case "${DNS_PROVIDER}" in
     noip)
-        NOIP_USERNAME="${NOIP_USERNAME:-}"
-        NOIP_PASSWORD="${NOIP_PASSWORD:-}"
         [ -n "$NOIP_USERNAME" ] || fail "NOIP_USERNAME is required when DNS_PROVIDER=noip."
         [ -n "$NOIP_PASSWORD" ] || fail "NOIP_PASSWORD is required when DNS_PROVIDER=noip."
         NOIP_HOSTNAMES="all.ddnskey.com"
         ;;
     cloudflare)
-        CF_API_TOKEN="${CF_API_TOKEN:-}"
         [ -n "$CF_API_TOKEN" ] || fail "CF_API_TOKEN is required when DNS_PROVIDER=cloudflare."
         ;;
     none)
@@ -138,33 +125,28 @@ DNS1="${DNS1:-1.1.1.1}"
 DNS2="${DNS2:-8.8.8.8}"
 MEDIA_ROOT="${MEDIA_ROOT:-/srv/mergerfs/media}"
 MEDIA_ROOT="${MEDIA_ROOT%/}"
-PLEX_CLAIM="${PLEX_CLAIM:-}"
-PLEX_HTTPS_PORT="${PLEX_HTTPS_PORT:-8443}"
-FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-${MEDIA_ROOT}/share}"
-INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
-REMOTE_DEVICES="${REMOTE_DEVICES:-}"
-HOME_KEY="${HOME_KEY:-KEY_HOMEPAGE}"
-SLEEP_KEY="${SLEEP_KEY:-}"
-TV_AUDIO_DEVICE="${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}"
 
-[[ "$PLEX_HTTPS_PORT" =~ ^[0-9]+$ ]] && (( PLEX_HTTPS_PORT >= 1 && PLEX_HTTPS_PORT <= 65535 )) \
-    || fail "PLEX_HTTPS_PORT '${PLEX_HTTPS_PORT}' must be a number between 1 and 65535."
+# --- Display apps: at most one -----------------------------------------------
+# They'd fight over the HDMI output, so keep the first in SERVICES order.
+_display=""
+for name in "${SERVICES[@]}"; do
+    if [ "${SERVICE_GROUP[$name]}" != "display" ] || ! profile_enabled "$name"; then
+        continue
+    fi
+    if [ -z "${_display}" ]; then
+        _display="$name"
+        continue
+    fi
+    echo "Warning: ${_display} and ${name} both drive the HDMI display, so ${name} has been disabled." >&2
+    _profiles=",${COMPOSE_PROFILES},"
+    _profiles="${_profiles//,${name},/,}"
+    _profiles="${_profiles#,}"
+    COMPOSE_PROFILES="${_profiles%,}"
+done
 
-# --- UMS_NETWORK_INTERFACE: auto-detect if not supplied -----------------------
-UMS_NETWORK_INTERFACE="${UMS_NETWORK_INTERFACE:-}"
-case ",${COMPOSE_PROFILES}," in
-    *,universalmediaserver,*)
-        if [ -z "$UMS_NETWORK_INTERFACE" ]; then
-            UMS_NETWORK_INTERFACE="$(detect_local_interface)"
-            [ -n "$UMS_NETWORK_INTERFACE" ] \
-                || fail "Could not auto-detect UMS_NETWORK_INTERFACE. Set it explicitly via the UMS_NETWORK_INTERFACE env var."
-            echo "Auto-detected UMS_NETWORK_INTERFACE: ${UMS_NETWORK_INTERFACE}" >&2
-        else
-            interface_exists "$UMS_NETWORK_INTERFACE" \
-                || fail "UMS_NETWORK_INTERFACE '${UMS_NETWORK_INTERFACE}' was not found on this host."
-        fi
-        ;;
-esac
+# --- Service settings ---------------------------------------------------------
+run_hooks defaults all
+run_hooks validate
 
 # --- Write .env --------------------------------------------------------------
 write_env "${ENV_FILE}"
