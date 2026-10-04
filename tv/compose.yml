@@ -1,9 +1,11 @@
 # TV launcher: a smart-TV home screen on the server's HDMI output.
 # tv-hub (profile "tv") switches between the app containers (profile
 # "tv-apps"). Only one app can own the display, so "tv-apps" is never in
-# COMPOSE_PROFILES and only the hub starts them. Create them once with:
-#   docker compose --profile tv-apps create
-# Adding an app: a "tv-apps" service, plus <name>=<container_name> in APPS.
+# COMPOSE_PROFILES and only the hub starts them. `compose up` never creates
+# or updates them; env-setup.sh does (tv/env.sh).
+# App settings: apps/ is rendered into apps-rendered/ on each `up`.
+# Adding an app: apps/<name>.conf, a "tv-apps" service with APP=<name> and
+# container_name set to its service name, plus <name>=<container_name> in APPS.
 
 x-tv-browser: &tv-browser
   build:
@@ -23,8 +25,26 @@ x-tv-browser: &tv-browser
   volumes:
     - /etc/localtime:/etc/localtime:ro
     - /run/udev:/run/udev:ro   # libinput needs it to see input devices
+    - ./apps-rendered:/config:ro
 
 services:
+  # One-shot. Renders apps/ into apps-rendered/ (see template_rendering/).
+  tv-render:
+    build:
+      context: ../template_rendering
+      dockerfile: Dockerfile
+    image: homeserver-renderer:local
+    pull_policy: never
+    profiles: ["tv"]
+    volumes:
+      - ./apps:/in:ro
+      - ./apps-rendered:/out
+    environment:
+      - IN=/in
+      - OUT=/out
+      - VARS=$${TV_AUDIO_DEVICE}
+      - TV_AUDIO_DEVICE=${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}
+
   tv-hub:
     build:
       context: ./hub
@@ -33,6 +53,9 @@ services:
     container_name: tv-hub
     profiles: ["tv"]
     restart: unless-stopped
+    depends_on:
+      tv-render:
+        condition: service_completed_successfully
     environment:
       - APPS=home=tv-home,youtube=tv-youtube
       - REMOTE_DEVICES=${REMOTE_DEVICES:-}   # blank = every input device
@@ -61,20 +84,17 @@ services:
     <<: *tv-browser
     container_name: tv-home
     environment:
-      - COG_URL=http://tv-hub:8099/
-      - AUDIO_DEVICE=${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}
+      - APP=home
 
   tv-youtube:
     <<: *tv-browser
     container_name: tv-youtube
     environment:
-      - COG_URL=https://www.youtube.com/tv
-      # youtube.com/tv only serves TV user agents; this is Cobalt's.
-      - COG_USER_AGENT=${YOUTUBE_USER_AGENT:-Mozilla/5.0 (Linux armeabi-v7a; Android 9) Cobalt/23.lts.4.308522-gold (unlike Gecko) v8/8.8.278.17-jit gles Starboard/14, Generic_TV_Model/1.0 (Generic, TV, Wired)}
-      - AUDIO_DEVICE=${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}
+      - APP=youtube
       - XDG_DATA_HOME=/data
       - XDG_CACHE_HOME=/data/cache
-    volumes:
+    volumes:   # replaces the shared list, so repeats it
       - /etc/localtime:/etc/localtime:ro
       - /run/udev:/run/udev:ro
+      - ./apps-rendered:/config:ro
       - ./data/youtube:/data   # keeps the YouTube sign-in

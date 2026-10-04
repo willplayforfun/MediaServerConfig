@@ -129,7 +129,7 @@ def start(container):
     status, body = docker_request("POST", f"/containers/{container}/start")
     if status == 404:
         raise RuntimeError(
-            f"container {container} doesn't exist - run 'docker compose --profile tv-apps create'"
+            f"container {container} doesn't exist - re-run env-setup.sh to create the TV app containers"
         )
     if status not in (204, 304):  # 304 = already started
         raise RuntimeError(f"start {container} failed: {status} {body!r}")

@@ -1,3 +1,16 @@
+# Updating the Server
+
+To get the latest version of this setup, run these on the server:
+```
+cd /opt/docker
+docker compose down
+git pull
+./env-setup.sh
+docker compose up -d --build
+```
+
+NOTE: always re-run `env-setup.sh` after every update! It preserves your existing choices between runs, so re-running is safe and easy.
+
 # Managing Users
 
 You only need to add a new system user if you want to grant SFTP/SMB access. Otherwise, each service (Jellyfin, Audiobookshelf, etc.) manages their own user list.
@@ -103,5 +116,5 @@ Setup notes:
   - with the TV apps stopped, try each one with `speaker-test -D <device> -c 2 -t sine -l 1`;
   - put the one that plays in `TV_AUDIO_DEVICE`. On Intel graphics it's usually one of `hdmi:CARD=PCH,DEV=0`, `DEV=1` or `DEV=2`.
   - If none play, see `host/install-hdmi-audio-fix.sh`.
-- After changing the TV app env settings, restart the docker stack.
+- To change the TV settings, re-run `env-setup.sh`, then run `docker compose up -d`.
 - Troubleshooting: `sudo bash scripts/display-diagnose.sh`, and `docker logs tv-hub`.

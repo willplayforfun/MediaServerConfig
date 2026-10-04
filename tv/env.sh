@@ -12,11 +12,9 @@ tv_prompt() {
     local -a candidates picked
     local sel n i ok
     echo
-    echo "TV launcher is enabled. The hub reads the remote directly: its Home"
-    echo "button returns to the launcher (hold it to turn the display off), and"
-    echo "any button wakes the display. If you don't know the remote's device"
-    echo "or its Home button's key name yet, run 'sudo evtest' in another"
-    echo "terminal first."
+    echo "TV app is enabled. It reads inputs directly, e.g. for bluetooth remotes."
+    echo "If you don't know the remote's device name or Home button key name yet,"
+    echo "run 'sudo evtest' in another terminal first."
     echo
 
     shopt -s nullglob
@@ -83,23 +81,34 @@ tv_summary() {
     echo "TV audio:         ${TV_AUDIO_DEVICE}"
 }
 
-# `compose up` never starts the "tv-apps" profile, so the hub needs them
-# created once.
+# The app containers, from the hub's APPS in tv/compose.yml. Each app's
+# compose service has the same name as its container.
+tv_apps() {
+    sed -n 's/^ *- APPS=//p' "${REPO_DIR}/tv/compose.yml" | tr ',' '\n' | cut -d= -f2
+}
+
+# Creates or updates the app containers (`compose up` skips "tv-apps"). The
+# services are named because --profile overrides COMPOSE_PROFILES: without
+# names, create would also recreate changed core containers and leave them stopped.
 tv_post_setup() {
+    local -a apps
+    local cmd
+    mapfile -t apps < <(tv_apps)
+    cmd="docker compose --profile tv-apps create --build ${apps[*]}"
     echo
-    if ! confirm "Create the tv-apps containers now (required before the launcher can show anything)?" Y; then
-        echo "  Skipped. Run 'docker compose --profile tv-apps create' before using the launcher."
+    if ! confirm "Create or update the TV app containers now (required before the launcher can show anything)?" Y; then
+        echo "  Skipped. Run '${cmd}' before using the launcher."
     elif ! command -v docker >/dev/null 2>&1; then
         echo "  Warning: docker not found on PATH. Run this manually later:" >&2
-        echo "    docker compose --profile tv-apps create" >&2
-    elif ( cd "${REPO_DIR}" && docker compose --profile tv-apps create ); then
-        echo "  tv-apps containers created."
+        echo "    ${cmd}" >&2
+    elif ( cd "${REPO_DIR}" && docker compose --profile tv-apps create --build "${apps[@]}" ); then
+        echo "  TV app containers are up to date."
     else
         echo "  Warning: container creation failed. Run this manually once it's fixed:" >&2
-        echo "    docker compose --profile tv-apps create" >&2
+        echo "    ${cmd}" >&2
     fi
 }
 
 tv_containers() {
-    echo tv-hub tv-home tv-youtube
+    echo tv-hub $(tv_apps)
 }

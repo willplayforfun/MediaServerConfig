@@ -1,0 +1,6 @@
+# ALSA default device for every TV app. `plug` converts to a rate/format the
+# HDMI device accepts.
+pcm.!default {
+    type plug
+    slave.pcm "${TV_AUDIO_DEVICE}"
+}
