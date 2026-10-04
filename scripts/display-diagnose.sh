@@ -1,22 +1,16 @@
 #!/bin/bash
 # display-diagnose.sh
-# Read-only snapshot of everything relevant to "the projector keeps dropping
-# to the transmitter's 'unconnected' screen and coming back": DRM connector
-# state (sysfs + debugfs override/force), Kodi container restarts, Kodi's
-# own log, its display/audio settings, and kernel hotplug messages. Ends by
-# sampling the connector status for 20 seconds so a server-side flap shows
-# up as a status/mode change in the output.
+# Read-only snapshot of the server's display output: DRM connector state
+# (sysfs + debugfs override/force), the active mode, HDMI audio ELD, the TV
+# launcher containers and their logs, HDMI audio activity, and kernel
+# messages. Ends by sampling the connector status for 20 seconds.
 #
-# Changes nothing. Paste the full output back for diagnosis.
+# Changes nothing. Useful for debugging via AI.
 #
 # Usage:
-#   sudo bash scripts/display-diagnose.sh 2>&1 | tee display-diagnose.log
+#   sudo bash scripts/display-diagnose.sh
 
 set -u
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(dirname "$SCRIPT_DIR")"
-KODI_CFG="${REPO_DIR}/kodi/config"
 
 section() { printf '\n===== %s =====\n' "$1"; }
 
@@ -57,8 +51,8 @@ for f in /sys/kernel/debug/dri/*/i915_display_info; do
 done
 
 section "HDMI audio ELD (what the sink says it can play)"
-# monitor_present/eld_valid=1 and sad_count>0 means the transmitter's EDID
-# already advertises audio - i.e. no override needed for audio at all.
+# monitor_present/eld_valid=1 with sad_count>0 means the connected display
+# advertises audio and the audio driver has registered that HDMI port.
 for f in /proc/asound/card*/eld#*; do
     [ -e "$f" ] || continue
     echo "-- $f"
@@ -80,7 +74,7 @@ else
 fi
 
 section "display containers"
-for c in kodi switcher youtube-tv; do
+for c in tv-hub tv-home tv-youtube kodi; do
     if docker inspect "$c" >/dev/null 2>&1; then
         docker inspect -f "$c: status={{.State.Status}} running={{.State.Running}} restarts={{.RestartCount}} started={{.State.StartedAt}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}" "$c"
     else
@@ -88,24 +82,21 @@ for c in kodi switcher youtube-tv; do
     fi
 done
 
-section "kodi container log (last 40 lines)"
-docker logs --tail 40 kodi 2>&1
+section "tv-hub log (last 40 lines)"
+docker logs --tail 40 tv-hub 2>&1
 
-section "kodi.log (errors, display, audio)"
-if [ -f "${KODI_CFG}/temp/kodi.log" ]; then
-    grep -iE 'error|fatal|resolution|refresh|modeset|drm|gbm|hdmi|audio|sink|passthrough|crash' "${KODI_CFG}/temp/kodi.log" | tail -n 60
-else
-    echo "(no ${KODI_CFG}/temp/kodi.log)"
-fi
-[ -f "${KODI_CFG}/temp/kodi.old.log" ] && echo "(a kodi.old.log exists - Kodi has restarted at least once)"
-ls -la "${KODI_CFG}"/temp/kodi_crashlog* 2>/dev/null
+for c in tv-home tv-youtube; do
+    section "$c log (last 20 lines)"
+    docker logs --tail 20 "$c" 2>&1
+done
 
-section "kodi display/audio settings"
-if [ -f "${KODI_CFG}/userdata/guisettings.xml" ]; then
-    grep -E 'id="(videoscreen|audiooutput|videoplayer\.adjustrefreshrate)' "${KODI_CFG}/userdata/guisettings.xml"
-else
-    echo "(no guisettings.xml)"
-fi
+section "audio playing (HDMI PCM state)"
+grep -H "state:" /proc/asound/card*/pcm*p/sub*/status 2>/dev/null || echo "(no PCM status files)"
+
+section "console blank state"
+for d in /sys/class/drm/card*-*/; do
+    [ -f "${d}dpms" ] && echo "$(basename "$d"): dpms=$(cat "${d}dpms")"
+done
 
 section "kernel messages (drm/hdmi/hotplug, last 60)"
 dmesg --ctime 2>/dev/null | grep -iE 'drm|i915|xe |hdmi|hotplug|hpd|edid|snd_hda|eld' | tail -n 60
@@ -125,5 +116,5 @@ for _ in $(seq 1 40); do
     sleep 0.5
 done
 echo "(sampling done - only changes are printed, so one line means no change)"
-echo "(no change here while the projector flaps = the drop is on the wireless TX/RX link,"
-echo " not a hotplug the server sees - that points at the signal being sent, not the connection)"
+echo "(no change here while the picture drops out = the server kept its connection; the drop is"
+echo " downstream, e.g. a cable, extender or the display itself)"

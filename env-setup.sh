@@ -33,8 +33,10 @@ PLEX_HTTPS_PORT="8443"
 FILEBROWSER_ROOT="/srv/mergerfs/media/share"
 INITIAL_FILEBROWSER_PASSWORD="hellofilebrowser"
 UMS_NETWORK_INTERFACE=""
-REMOTE_DEVICE=""
-RETURN_KEY="KEY_HOMEPAGE"
+REMOTE_DEVICES=""
+HOME_KEY="KEY_HOMEPAGE"
+SLEEP_KEY=""
+TV_AUDIO_DEVICE="hdmi:CARD=PCH,DEV=0"
 INTERNAL_DNS_ADAPTER=""
 OPNSENSE_URL=""
 OPNSENSE_API_KEY=""
@@ -46,6 +48,13 @@ if [ -f "$ENV_FILE" ]; then
     EXISTING_ENV=true
     # shellcheck disable=SC1090
     set -a; source "${ENV_FILE}"; set +a
+    # Carry the remote settings over from the Kodi-era variable names.
+    if [ -z "${REMOTE_DEVICES}" ] && [ -n "${REMOTE_DEVICE:-}" ]; then
+        REMOTE_DEVICES="${REMOTE_DEVICE}"
+    fi
+    if [ -n "${RETURN_KEY:-}" ] && [ "${HOME_KEY}" = "KEY_HOMEPAGE" ]; then
+        HOME_KEY="${RETURN_KEY}"
+    fi
     echo "Loaded existing ${ENV_FILE}."
     echo "Press Enter at any prompt to keep the current value."
 else
@@ -273,7 +282,28 @@ ask_service audiobookshelf       "Audiobookshelf (audiobooks & podcasts)"    Y
 ask_service stash                "Stash (video streaming)"                   N
 ask_service filebrowser          "Filebrowser (web file manager)"            Y
 ask_service fileflows            "FileFlows (media file processing workflows)"    N
-ask_service kodi                 "Kodi (HDMI-attached media center, DRM/KMS)" N
+
+# HDMI display app - at most one, since both drive the server's HDMI output
+# directly and would fight over it. Defaults to whichever is already enabled.
+case ",${COMPOSE_PROFILES}," in
+    *,tv,*)   _display_default=2 ;;
+    *,kodi,*) _display_default=3 ;;
+    *)        _display_default=1 ;;
+esac
+echo
+echo "  HDMI display app, for a TV/projector plugged into the server (pick one):"
+echo "    1) None"
+echo "    2) TV launcher (smart-TV home screen with app tiles, sleeps when idle)"
+echo "    3) Kodi (media center)"
+read -r -p "  Choice [${_display_default}]: " _display_choice
+_display_choice="${_display_choice:-$_display_default}"
+while ! [[ "$_display_choice" =~ ^[123]$ ]]; do
+    read -r -p "  Please enter 1, 2 or 3: " _display_choice
+done
+case "$_display_choice" in
+    2) PROFILES+=("tv") ;;
+    3) PROFILES+=("kodi") ;;
+esac
 
 # Add the DNS provider profile so the right DDNS container starts.
 [ "${DNS_PROVIDER}" != "none" ] && PROFILES+=("${DNS_PROVIDER}")
@@ -315,15 +345,15 @@ case ",${COMPOSE_PROFILES}," in
         ;;
 esac
 
-# --- Remote control (only when Kodi is enabled) ------------------------------
+# --- TV launcher remote & audio (only when enabled) --------------------------
 case ",${COMPOSE_PROFILES}," in
-    *,kodi,*)
+    *,tv,*)
         echo
-        echo "Kodi is enabled. The switcher's kiosk TV apps (e.g. youtube-tv) need"
-        echo "to know which input device is the remote, and the key its dedicated"
-        echo "'return to Kodi' button sends (see OperationsGuide.md)."
-        echo "If you haven't identified the button yet, run 'sudo evtest' in"
-        echo "another terminal first."
+        echo "TV launcher is enabled. The hub reads the remote directly: its Home"
+        echo "button returns to the launcher (hold it to turn the display off), and"
+        echo "any button wakes the display. If you don't know the remote's device"
+        echo "or its Home button's key name yet, run 'sudo evtest' in another"
+        echo "terminal first."
         echo
 
         shopt -s nullglob
@@ -331,28 +361,48 @@ case ",${COMPOSE_PROFILES}," in
         shopt -u nullglob
 
         if [ ${#_remote_candidates[@]} -eq 0 ]; then
-            echo "  No devices found under /dev/input/by-id/. Leaving REMOTE_DEVICE blank -"
-            echo "  set it manually in .env once the remote is plugged in."
+            echo "  No devices found under /dev/input/by-id/ - the hub will watch every"
+            echo "  input device. Re-run this once the remote is plugged in to narrow it."
         else
             echo "  Available input devices:"
-            _default_idx=""
             for i in "${!_remote_candidates[@]}"; do
-                _marker=""
-                [ "${_remote_candidates[$i]}" = "${REMOTE_DEVICE}" ] && { _marker=" (current)"; _default_idx=$((i + 1)); }
-                printf "    %d) %s%s\n" "$((i + 1))" "${_remote_candidates[$i]}" "${_marker}"
+                printf "    %d) %s\n" "$((i + 1))" "${_remote_candidates[$i]}"
             done
-            read -r -p "  Select the remote's device [${_default_idx:-1}]: " _dev_choice
-            _dev_choice="${_dev_choice:-${_default_idx:-1}}"
-            while ! [[ "$_dev_choice" =~ ^[0-9]+$ ]] || [ "$_dev_choice" -lt 1 ] || [ "$_dev_choice" -gt ${#_remote_candidates[@]} ]; do
-                read -r -p "  Please enter a number between 1 and ${#_remote_candidates[@]}: " _dev_choice
+            echo "  Current: ${REMOTE_DEVICES:-all devices}"
+            while true; do
+                read -r -p "  Remote's device numbers, space-separated (Enter = keep current, 'all' = every device): " _sel
+                case "$_sel" in
+                    "") break ;;
+                    all) REMOTE_DEVICES=""; break ;;
+                esac
+                _picked=()
+                _ok=true
+                for _n in $_sel; do
+                    if [[ "$_n" =~ ^[0-9]+$ ]] && [ "$_n" -ge 1 ] && [ "$_n" -le ${#_remote_candidates[@]} ]; then
+                        _picked+=("${_remote_candidates[$((_n - 1))]}")
+                    else
+                        echo "  '$_n' isn't one of the listed numbers."
+                        _ok=false
+                    fi
+                done
+                if $_ok; then
+                    REMOTE_DEVICES="$(IFS=,; echo "${_picked[*]}")"
+                    break
+                fi
             done
-            REMOTE_DEVICE="${_remote_candidates[$((_dev_choice - 1))]}"
         fi
 
-        ask RETURN_KEY "  Key name evtest reported for the 'return to Kodi' button"
-        while [ -z "${RETURN_KEY}" ]; do
-            read -r -p "  Key name cannot be empty. Try again: " RETURN_KEY
+        ask HOME_KEY "  Key name evtest reported for the remote's Home button (or its numeric code)"
+        while [ -z "${HOME_KEY}" ]; do
+            read -r -p "  Key name cannot be empty. Try again: " HOME_KEY
         done
+        ask SLEEP_KEY "  Optional button that turns the display off straight away (Enter to skip)"
+        if command -v aplay >/dev/null 2>&1; then
+            echo "  HDMI audio devices on this host (with the TV apps stopped, test one with"
+            echo "  'speaker-test -D <device> -c 2 -t sine -l 1'):"
+            aplay -L 2>/dev/null | grep '^hdmi:' | sed 's/^/    /' || echo "    (none found)"
+        fi
+        ask TV_AUDIO_DEVICE "  ALSA device for HDMI audio"
         ;;
 esac
 
@@ -361,41 +411,55 @@ FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
 write_env "${ENV_FILE}"
 
-# --- Seed the YouTube favourite (only when Kodi is enabled) ------------------
-# Kodi has no first-run wizard to hang this on, so it's written directly
-# into favourites.xml instead of requiring it to be typed in through Kodi's
-# on-screen keyboard. Idempotent - safe to run every time env-setup.sh runs.
+# --- Create tv-apps containers (only when the TV launcher is enabled) --------
+# The TV apps (tv-home, tv-youtube, ...) live in the "tv-apps" profile so a
+# plain `docker compose up` never starts them - only the hub does, one at a
+# time (see tv/compose.yml). They still have to be created once so the hub
+# has containers to start.
 case ",${COMPOSE_PROFILES}," in
-    *,kodi,*)
-        bash "${SCRIPT_DIR}/kodi-add-youtube-favourite.sh"
-        ;;
-esac
-
-# --- Create kodi-apps containers (only when Kodi is enabled) ----------------
-# youtube-tv (and any future switchable TV app) lives in the "kodi-apps"
-# profile specifically so a plain `docker compose up` never starts it - see
-# OperationsGuide.md. It still has to be created (not started) once so the
-# switcher has a container to start on demand.
-case ",${COMPOSE_PROFILES}," in
-    *,kodi,*)
+    *,tv,*)
         echo
-        read -r -p "Create the kodi-apps containers now (e.g. youtube-tv - required before the switcher can launch them)? [Y/n] " _create_ans
+        read -r -p "Create the tv-apps containers now (required before the launcher can show anything)? [Y/n] " _create_ans
         _create_ans="${_create_ans:-Y}"
         case "$_create_ans" in
             [yY]|[yY][eE][sS])
                 if ! command -v docker >/dev/null 2>&1; then
                     echo "  Warning: docker not found on PATH. Run this manually later:" >&2
-                    echo "    docker compose --profile kodi-apps create" >&2
-                elif ( cd "${SCRIPT_DIR}" && docker compose --profile kodi-apps create ); then
-                    echo "  kodi-apps containers created."
+                    echo "    docker compose --profile tv-apps create" >&2
+                elif ( cd "${SCRIPT_DIR}" && docker compose --profile tv-apps create ); then
+                    echo "  tv-apps containers created."
                 else
                     echo "  Warning: container creation failed. Run this manually once it's fixed:" >&2
-                    echo "    docker compose --profile kodi-apps create" >&2
+                    echo "    docker compose --profile tv-apps create" >&2
                 fi
                 ;;
             *)
-                echo "  Skipped. Run 'docker compose --profile kodi-apps create' before using the switcher."
+                echo "  Skipped. Run 'docker compose --profile tv-apps create' before using the launcher."
                 ;;
         esac
         ;;
 esac
+
+# --- Remove the display app that isn't enabled -------------------------------
+# Disabling a profile doesn't stop containers it already created, and the
+# TV launcher and Kodi can't share the HDMI output - so offer to remove the
+# other one's containers (config on disk is kept).
+case ",${COMPOSE_PROFILES}," in
+    *,tv,*)   _retire=(kodi) ;;
+    *,kodi,*) _retire=(tv-hub tv-home tv-youtube) ;;
+    *)        _retire=(kodi tv-hub tv-home tv-youtube) ;;
+esac
+if command -v docker >/dev/null 2>&1; then
+    _existing=()
+    for _c in "${_retire[@]}"; do
+        docker inspect "$_c" >/dev/null 2>&1 && _existing+=("$_c")
+    done
+    if [ ${#_existing[@]} -gt 0 ]; then
+        echo
+        read -r -p "Remove the containers of the display app you didn't pick (${_existing[*]})? [Y/n] " _rm_ans
+        case "${_rm_ans:-Y}" in
+            [yY]|[yY][eE][sS]) docker rm -f "${_existing[@]}" >/dev/null && echo "  Removed: ${_existing[*]}" ;;
+            *) echo "  Kept. They'll fight over the display if both run - remove them with: docker rm -f ${_existing[*]}" ;;
+        esac
+    fi
+fi

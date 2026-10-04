@@ -43,7 +43,7 @@ interface_exists() {
 # DNS_PROVIDER, DOMAIN, CERTBOT_EMAIL, LOCAL_IP, DNS1, DNS2,
 # COMPOSE_PROFILES, PLEX_CLAIM, PLEX_HTTPS_PORT,
 # FILEBROWSER_ROOT, INITIAL_FILEBROWSER_PASSWORD, UMS_NETWORK_INTERFACE,
-# REMOTE_DEVICE, RETURN_KEY
+# REMOTE_DEVICES, HOME_KEY, SLEEP_KEY, TV_AUDIO_DEVICE
 # must be set before calling.
 # Provider-specific vars (NOIP_* or CF_API_TOKEN) must also be set when relevant,
 # as must OPNSENSE_* when INTERNAL_DNS_ADAPTER=opnsense.
@@ -137,12 +137,16 @@ PLEX_CLAIM=${PLEX_CLAIM}
 # Port nginx uses to serve Plex over HTTPS (Plex can't live under a subpath).
 PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 
-# Kodi TV-app switcher (see OperationsGuide.md)
-# Stable /dev/input/by-id/... path for the remote, and the evdev key name
-# its dedicated "return to Kodi" button sends. Only used when the kodi
-# profile is enabled.
-REMOTE_DEVICE=${REMOTE_DEVICE}
-RETURN_KEY=${RETURN_KEY}
+# TV launcher (see tv/compose.yml)
+# Remote input device(s) the hub reads, as comma-separated stable
+# /dev/input/by-id/... paths (blank = every input device), and the evdev key
+# names (or numeric codes) of its Home button and an optional instant-sleep
+# button. TV_AUDIO_DEVICE is the ALSA device the TV apps play sound on.
+# Only used when the tv profile is enabled.
+REMOTE_DEVICES=${REMOTE_DEVICES}
+HOME_KEY=${HOME_KEY}
+SLEEP_KEY=${SLEEP_KEY}
+TV_AUDIO_DEVICE=${TV_AUDIO_DEVICE}
 EOF
 
     chmod 600 "${env_file}"
@@ -162,13 +166,12 @@ EOF
         *,universalmediaserver,*) echo "UMS admin (LAN):  http://${LOCAL_IP}:9001" >&2 ;;
     esac
     case ",${COMPOSE_PROFILES}," in
+        *,tv,*)
+            echo "TV remote:        ${REMOTE_DEVICES:-all input devices} (Home: ${HOME_KEY}${SLEEP_KEY:+, sleep: ${SLEEP_KEY}})" >&2
+            echo "TV audio:         ${TV_AUDIO_DEVICE}" >&2
+            ;;
         *,kodi,*)
             echo "Kodi web UI (LAN): http://${LOCAL_IP}:8080" >&2
-            if [ -z "${REMOTE_DEVICE:-}" ]; then
-                echo "Remote device:    not set - youtube-tv won't hear the remote until REMOTE_DEVICE is set in .env" >&2
-            else
-                echo "Remote device:    ${REMOTE_DEVICE} (return key: ${RETURN_KEY})" >&2
-            fi
             ;;
     esac
 }

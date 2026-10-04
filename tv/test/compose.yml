@@ -1,0 +1,51 @@
+# Local test harness for the TV hub - runs on any Docker host (including
+# Docker Desktop), no display needed. The real app containers are swapped
+# for idle placeholders, the remote for a FIFO that fake_remote.py writes
+# evdev events into, and idle timeouts are shortened. Console blanking has no
+# console to act on here, so the hub just logs that the ioctl failed.
+#
+#   docker compose -f tv/test/compose.yml --profile apps create
+#   docker compose -f tv/test/compose.yml up -d --build tv-hub
+#   open http://localhost:8099/ and watch: docker logs -f tv-test-hub
+#   (launcher.html is mounted live - edit it and refresh the browser)
+#   docker exec tv-test-hub python3 /test/fake_remote.py home      # short press
+#   docker exec tv-test-hub python3 /test/fake_remote.py home 2    # hold 2s = sleep
+#   docker compose -f tv/test/compose.yml --profile apps down
+name: tv-test
+
+x-placeholder: &placeholder
+  image: alpine:3.20
+  command: ["sleep", "infinity"]
+  init: true
+  profiles: ["apps"]
+  restart: "no"
+
+services:
+  tv-hub:
+    build:
+      context: ../hub
+    image: homeserver-tv-hub:test
+    container_name: tv-test-hub
+    environment:
+      - APPS=home=tv-test-home,youtube=tv-test-youtube,jellyfin=tv-test-jellyfin
+      - REMOTE_DEVICES=/remote/events
+      - HOME_IDLE_MINUTES=1
+      - APP_IDLE_MINUTES=2
+    entrypoint: ["sh", "-c", "mkdir -p /remote && rm -f /remote/events && mkfifo /remote/events && exec python3 /app/app.py"]
+    ports:
+      - "127.0.0.1:8099:8099"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/test:ro
+      # Served fresh on every request, so edits show up on a browser refresh.
+      - ../hub/launcher.html:/app/launcher.html:ro
+
+  tv-test-home:
+    <<: *placeholder
+    container_name: tv-test-home
+  tv-test-youtube:
+    <<: *placeholder
+    container_name: tv-test-youtube
+  tv-test-jellyfin:
+    <<: *placeholder
+    container_name: tv-test-jellyfin

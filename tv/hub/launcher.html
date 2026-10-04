@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --fg: #f2f3f5;
+    --muted: #8a8f9c;
+    --tile: #20242e;
+    --focus: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html {
+    height: 100%;
+    background: var(--bg) linear-gradient(180deg, #1b2030 0%, var(--bg) 70%) no-repeat;
+  }
+  body {
+    margin: 0; height: 100%;
+    color: var(--fg);
+    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+    overflow: hidden;
+    cursor: default;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 5vh 6vw 0;
+  }
+  #clock { font-size: 7vh; font-weight: 300; letter-spacing: 0.02em; }
+  #date { font-size: 2.6vh; color: var(--muted); margin-top: 0.6vh; }
+  #off {
+    background: none; border: 0.3vh solid transparent; border-radius: 4vh;
+    color: var(--muted); font: inherit; font-size: 2.4vh; padding: 1.2vh 2.6vh;
+  }
+  #off:focus { outline: none; border-color: var(--focus); color: var(--fg); }
+  main {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    display: flex; justify-content: center; gap: 3vw; padding: 0 6vw;
+  }
+  .tile {
+    width: 22vw; aspect-ratio: 16 / 10;
+    border: 0; border-radius: 2.4vh;
+    background: var(--tile);
+    color: var(--fg); font: inherit;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4vh;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    position: relative; overflow: hidden;
+  }
+  .tile::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(160deg, var(--accent) 0%, transparent 75%);
+    opacity: 0.45;
+  }
+  .tile:focus {
+    outline: none; transform: scale(1.08);
+    box-shadow: 0 0 0 0.5vh var(--focus), 0 3vh 6vh rgba(0, 0, 0, 0.6);
+  }
+  .tile:focus::before { opacity: 0.8; }
+  .tile svg { width: 9vh; height: 9vh; position: relative; }
+  .tile span { font-size: 3.6vh; font-weight: 600; position: relative; }
+  #status {
+    position: absolute; bottom: 7vh; width: 100%; text-align: center;
+    font-size: 2.6vh; color: var(--muted); min-height: 3vh;
+  }
+  #empty { color: var(--muted); font-size: 3vh; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div id="clock"></div>
+    <div id="date"></div>
+  </div>
+  <button id="off" type="button">Display off</button>
+</header>
+<main id="tiles"></main>
+<div id="status"></div>
+
+<script>
+  const TILES = /*TILES*/[];
+
+  const ICONS = {
+    youtube: '<svg viewBox="0 0 48 48"><rect x="3" y="9" width="42" height="30" rx="9" fill="#ff0033"/><path d="M20 17l12 7-12 7z" fill="#fff"/></svg>',
+    jellyfin: '<svg viewBox="0 0 48 48"><defs><linearGradient id="jf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#aa5cc3"/><stop offset="1" stop-color="#00a4dc"/></linearGradient></defs><path d="M24 5C18 5 2 34 5 39s35 5 38 0S30 5 24 5zm0 12c3 0 10 14 8.5 17s-15.5 3-17 0S21 17 24 17z" fill="url(#jf)"/></svg>',
+    steam: '<svg viewBox="0 0 48 48"><rect x="4" y="14" width="40" height="22" rx="11" fill="#1a9fff"/><path d="M14 21v8M10 25h8" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="22.5" r="2.3" fill="#fff"/><circle cx="36.5" cy="27.5" r="2.3" fill="#fff"/></svg>',
+  };
+  const FALLBACK_ICON = '<svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="6" fill="none" stroke="#fff" stroke-width="3"/></svg>';
+
+  const tilesEl = document.getElementById("tiles");
+  const statusEl = document.getElementById("status");
+  const offBtn = document.getElementById("off");
+
+  if (TILES.length === 0) {
+    tilesEl.innerHTML = '<div id="empty">No apps configured.</div>';
+  }
+  for (const t of TILES) {
+    const b = document.createElement("button");
+    b.className = "tile";
+    b.type = "button";
+    b.style.setProperty("--accent", t.color);
+    b.innerHTML = (ICONS[t.id] || FALLBACK_ICON) + "<span></span>";
+    b.querySelector("span").textContent = t.label;
+    b.addEventListener("click", () => post("/launch/" + t.id, "Starting " + t.label + "…"));
+    b.addEventListener("mouseenter", () => b.focus());
+    tilesEl.appendChild(b);
+  }
+  offBtn.addEventListener("click", () => post("/sleep", "Turning the display off…"));
+  offBtn.addEventListener("mouseenter", () => offBtn.focus());
+
+  let busy = false;
+  async function post(path, message) {
+    if (busy) return;
+    busy = true;
+    statusEl.textContent = message;
+    try {
+      const r = await fetch(path, { method: "POST" });
+      if (!r.ok) statusEl.textContent = "Couldn't do that: " + (await r.text());
+    } catch (e) {
+      // Expected when the hub stops this page's own container mid-request.
+    }
+    busy = false;
+  }
+
+  // D-pad navigation: left/right along the tiles, up to "Display off",
+  // down back to the tiles.
+  const tiles = () => Array.from(document.querySelectorAll(".tile"));
+  let lastTile = 0;
+  document.addEventListener("keydown", (e) => {
+    const list = tiles();
+    const i = list.indexOf(document.activeElement);
+    if (e.key === "ArrowRight" && i >= 0) { lastTile = Math.min(i + 1, list.length - 1); list[lastTile].focus(); }
+    else if (e.key === "ArrowLeft" && i >= 0) { lastTile = Math.max(i - 1, 0); list[lastTile].focus(); }
+    else if (e.key === "ArrowUp") { offBtn.focus(); }
+    else if (e.key === "ArrowDown" || i < 0 && document.activeElement !== offBtn) { if (list.length) list[lastTile].focus(); }
+    else return;
+    e.preventDefault();
+  });
+
+  function tick() {
+    const now = new Date();
+    document.getElementById("clock").textContent =
+      now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    document.getElementById("date").textContent =
+      now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  }
+  tick();
+  setInterval(tick, 5000);
+
+  if (tiles().length) tiles()[0].focus(); else offBtn.focus();
+</script>
+</body>
+</html>

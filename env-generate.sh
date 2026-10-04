@@ -30,11 +30,14 @@
 #   FILEBROWSER_ROOT              filebrowser root path (default: /srv/mergerfs/media/share)
 #   INITIAL_FILEBROWSER_PASSWORD  initial filebrowser admin password (default: hellofilebrowser)
 #   UMS_NETWORK_INTERFACE         host LAN interface for UMS's DLNA/UPnP discovery
-#   REMOTE_DEVICE                 stable /dev/input/by-id/... path for the remote used
-#                                  by the kodi TV-app switcher (default: empty - the
-#                                  switcher's "return to Kodi" button won't work until set)
-#   RETURN_KEY                    evdev key name the remote's dedicated button sends
+#   REMOTE_DEVICES                comma-separated stable /dev/input/by-id/... paths the
+#                                  TV launcher hub reads the remote from
+#                                  (default: empty - watch every input device)
+#   HOME_KEY                      evdev key name or code of the remote's Home button
 #                                  (default: KEY_HOMEPAGE)
+#   SLEEP_KEY                     optional key that turns the TV display off (default: empty)
+#   TV_AUDIO_DEVICE               ALSA device the TV apps play sound on
+#                                  (default: hdmi:CARD=PCH,DEV=0)
 #
 # Exit codes:
 #   0  .env written successfully
@@ -135,18 +138,13 @@ PLEX_CLAIM="${PLEX_CLAIM:-}"
 PLEX_HTTPS_PORT="${PLEX_HTTPS_PORT:-8443}"
 FILEBROWSER_ROOT="${FILEBROWSER_ROOT:-/srv/mergerfs/media/share}"
 INITIAL_FILEBROWSER_PASSWORD="${INITIAL_FILEBROWSER_PASSWORD:-hellofilebrowser}"
-REMOTE_DEVICE="${REMOTE_DEVICE:-}"
-RETURN_KEY="${RETURN_KEY:-KEY_HOMEPAGE}"
+REMOTE_DEVICES="${REMOTE_DEVICES:-}"
+HOME_KEY="${HOME_KEY:-KEY_HOMEPAGE}"
+SLEEP_KEY="${SLEEP_KEY:-}"
+TV_AUDIO_DEVICE="${TV_AUDIO_DEVICE:-hdmi:CARD=PCH,DEV=0}"
 
 [[ "$PLEX_HTTPS_PORT" =~ ^[0-9]+$ ]] && (( PLEX_HTTPS_PORT >= 1 && PLEX_HTTPS_PORT <= 65535 )) \
     || fail "PLEX_HTTPS_PORT '${PLEX_HTTPS_PORT}' must be a number between 1 and 65535."
-
-case ",${COMPOSE_PROFILES}," in
-    *,kodi,*)
-        [ -n "$REMOTE_DEVICE" ] \
-            || echo "Warning: kodi profile enabled but REMOTE_DEVICE is empty; the youtube-tv 'return to Kodi' button won't work until it's set." >&2
-        ;;
-esac
 
 # --- UMS_NETWORK_INTERFACE: auto-detect if not supplied -----------------------
 UMS_NETWORK_INTERFACE="${UMS_NETWORK_INTERFACE:-}"

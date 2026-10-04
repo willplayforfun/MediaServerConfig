@@ -292,3 +292,13 @@ See the individual guides for
 - [Navidrome](NavidromeSetupGuide.md)
 - [Audiobookshelf](AudiobookshelfSetupGuide.md)
 - [Filebrowser](FilebrowserSetupGuide.md)
+
+Note that only one option for direct display from the server is possible at a time; you can choose to use my hand-rolled TV app OR Kodi, but not both.
+
+# Troubleshooting
+
+If you are using the TV app or Kodi, and having issues with audio over HDMI, try running `install-hdmi-audio-fix.sh`.
+
+If you want to try having your server fans run quieter, run `install-fan-control.sh`. This is untested, and unfortunately H110 motherboards don't support adjusting fan speed. I ultimately added a physical fan speed controller to my build.
+
+Use `scripts/display-diagnose.sh` to get a good set of diagnostics for debugging HDMI output issues with an AI.

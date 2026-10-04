@@ -2,6 +2,6 @@
 # internal-dns-init service's convention in the main docker-compose.yml.
 FROM python:3.13-alpine
 
-COPY app.py /app.py
+COPY app.py launcher.html /app/
 
-CMD ["python3", "/app.py"]
+CMD ["python3", "/app/app.py"]

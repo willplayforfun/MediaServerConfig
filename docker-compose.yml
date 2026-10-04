@@ -1,8 +1,7 @@
-# switcher/compose.yml defines the switcher broker and any kiosk apps (e.g.
-# youtube-tv) that share the kodi container's display and get launched from
-# its home screen - see the comments in that file for the full picture.
+# tv/compose.yml defines the TV launcher: the tv-hub home screen and
+# the full-screen apps it switches between - see the comments in that file.
 include:
-  - switcher/compose.yml
+  - tv/compose.yml
 
 services:
   # ── Helpsite Render ────────────────────────────────────────────────────────
@@ -353,6 +352,8 @@ services:
   # --windowing=gbm is what actually selects DRM/KMS output; --standalone
   # skips the login/profile screen for an appliance-style boot straight into
   # the home screen.
+  # Alternative to the TV launcher (tv/compose.yml), not alongside it: both
+  # drive the HDMI output directly, so env-setup.sh only enables one.
   kodi:
     build:
       context: ./kodi

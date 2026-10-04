@@ -1,6 +1,6 @@
 # Managing Users
 
-You only need to add a new system user if you want to grant SFTP/SMB access. Otherwise, each service (Jellyfin, Audiobookshelf, etc.) manage their own user list.
+You only need to add a new system user if you want to grant SFTP/SMB access. Otherwise, each service (Jellyfin, Audiobookshelf, etc.) manages their own user list.
 
 ## Creating a new system user
 - Have them do ssh-keygen locally
@@ -84,3 +84,21 @@ If you are curious which ports are relevant:
 
 ### Audiobookshelf
 - 13378 - webui (routed to by Nginx)
+
+
+# TV Launcher App
+
+Using it:
+- Press **Home** on the remote to return to the launcher from any app.
+- **Hold Home** (or pick "Display off") to turn the HDMI output off. Any button wakes it.
+- The output also turns itself off after 10 minutes idle on the launcher, or 4 hours idle in an app with no sound playing. Change these with `TV_HOME_IDLE_MINUTES` / `TV_APP_IDLE_MINUTES` in `.env`. Set `TV_BOOT_STATE=sleep` to keep the display dark at boot until a button is pressed.
+
+Setup notes:
+- Find the remote's device and Home button key name with `sudo evtest`.
+- Find the HDMI audio device:
+  - list the candidates with `aplay -L | grep ^hdmi`;
+  - with the TV apps stopped, try each one with `speaker-test -D <device> -c 2 -t sine -l 1`;
+  - put the one that plays in `TV_AUDIO_DEVICE`. On Intel graphics it's usually one of `hdmi:CARD=PCH,DEV=0`, `DEV=1` or `DEV=2`.
+  - If none play, see `install-hdmi-audio-fix.sh`.
+- After changing the TV app env settings, restart the docker stack.
+- Troubleshooting: `sudo bash scripts/display-diagnose.sh`, and `docker logs tv-hub`.

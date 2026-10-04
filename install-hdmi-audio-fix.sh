@@ -4,7 +4,7 @@
 #
 # Symptom: HDMI video works, the display's EDID advertises audio, but every
 # /proc/asound/card*/eld#* reads eld_valid 0, speaker-test on the hdmi:
-# devices is silent, and dmesg shows "HDMI: pin NID 0x7 not registered".
+# devices is silent, and dmesg shows "HDMI: pin NID 0x... not registered".
 #
 # Cause: the HDA controller probes the HDMI audio codec before the display
 # side is fully up, and at that moment the codec only exposes some of its
@@ -14,15 +14,16 @@
 # Two fixes are offered (picking one removes the other):
 #
 #   1) Boot re-probe service (recommended). A systemd oneshot that, once the
-#      DRM HDMI connector exists, removes and rescans the HDA controller's
-#      PCI device so it re-probes with every pin visible. Runs before
-#      docker.service, so nothing is holding the audio device yet. Confirmed
-#      working on a Skylake iGPU with the 7.0 backports kernel.
+#      DRM HDMI connector exists, runs scripts/hdmi-audio-reprobe.sh: it
+#      removes and rescans the HDA controller's PCI device so it re-probes
+#      with every pin visible. Runs before docker.service, so nothing is
+#      holding the audio device yet. Works even where fixing the load order
+#      alone does not.
 #
 #   2) Module load order. A modprobe softdep so i915 always loads before
-#      snd_hda_intel. Lighter touch, and enough on some hardware - but it did
-#      NOT fix the Skylake/7.0 case above, where the race is about how far
-#      display init has got rather than module load order.
+#      snd_hda_intel. Lighter touch, and enough on some hardware - but on
+#      others the race is about how far display init has got rather than
+#      module load order, and only the re-probe helps.
 #
 # Must be run as root on the OMV host.
 #
@@ -31,6 +32,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPROBE_SRC="${SCRIPT_DIR}/scripts/hdmi-audio-reprobe.sh"
 HELPER=/usr/local/sbin/hdmi-audio-reprobe
 UNIT_NAME=hdmi-audio-reprobe.service
 UNIT=/etc/systemd/system/$UNIT_NAME
@@ -59,43 +62,8 @@ remove_softdep() {
 }
 
 install_reprobe() {
-    cat > "$HELPER" <<'EOF'
-#!/bin/bash
-# Re-probes the HDA controller that carries the Intel HDMI audio codec.
-# Installed by install-hdmi-audio-fix.sh - see that script for background.
-set -u
-
-# Wait (up to 30s) for i915 to register an HDMI connector, so display init
-# has got far enough that the codec will expose all of its pins.
-for _ in $(seq 1 30); do
-    ls /sys/class/drm/card*-HDMI-A-*/status >/dev/null 2>&1 && break
-    sleep 1
-done
-sleep 2
-
-# Find the PCI device of the sound card whose codec list includes Intel HDMI.
-dev=""
-for card in /proc/asound/card[0-9]*; do
-    if grep -qs "HDMI" "$card"/codec#*; then
-        dev="$(readlink -f "/sys/class/sound/$(basename "$card")/device")"
-        break
-    fi
-done
-
-if [ -z "$dev" ] || [ ! -e "$dev/remove" ]; then
-    echo "hdmi-audio-reprobe: no Intel HDMI audio controller found, nothing to do"
-    exit 0
-fi
-
-echo "hdmi-audio-reprobe: re-probing $(basename "$dev")"
-echo 1 > "$dev/remove"
-sleep 1
-echo 1 > /sys/bus/pci/rescan
-sleep 3
-grep -hE 'monitor_name' /proc/asound/card*/eld#* 2>/dev/null | sed 's/^/hdmi-audio-reprobe: /' || true
-EOF
-    chmod +x "$HELPER"
-    echo "Wrote $HELPER"
+    install -m 755 "$REPROBE_SRC" "$HELPER"
+    echo "Installed $REPROBE_SRC -> $HELPER"
 
     cat > "$UNIT" <<EOF
 [Unit]
@@ -136,8 +104,8 @@ install_softdep() {
 }
 
 echo "HDMI audio fix - choose one:"
-echo "  1) Boot re-probe service (recommended; confirmed on Skylake + 7.0 kernel)"
-echo "  2) Module load order (lighter; didn't help on Skylake + 7.0 kernel)"
+echo "  1) Boot re-probe service (recommended)"
+echo "  2) Module load order (lighter change)"
 echo "  3) Remove both"
 read -r -p "Choice [1]: " choice
 
