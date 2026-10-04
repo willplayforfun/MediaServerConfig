@@ -1,22 +1,11 @@
 #!/bin/sh
 # render-templates.sh
-# Generic template renderer. Walks $IN, copies every file into $OUT.
-# Files ending in .tmpl are rendered through envsubst (restricted to the
-# placeholders listed in $VARS) and have their .tmpl suffix dropped.
-# Non-template files are copied verbatim, preserving directory structure.
+# Copies every file in $IN to $OUT. *.tmpl files go through envsubst and lose
+# the suffix; only placeholders listed in $VARS are replaced, so other $words
+# (e.g. nginx variables) pass through.
 #
-# Required environment:
-#   IN     source directory (read-only is fine)
-#   OUT    output directory (created if missing)
-#   VARS   space-separated envsubst allowlist, e.g. '${DOMAIN} ${LOCAL_IP}'
-#
-# Every variable named in VARS must also be present in the environment.
-# Designed to run inside the renderer image built from
-# scripts/render-templates.Dockerfile, where envsubst is pre-installed.
-# Can also be run on any host that has gettext installed.
-#
-# To swap envsubst for a more capable engine (gomplate, jinja, mustache, ...),
-# replace the rendering line below and update the Dockerfile to match.
+# Env: IN (source dir), OUT (output dir), VARS (allowlist, e.g.
+# '${DOMAIN} ${LOCAL_IP}'). Each variable in VARS must also be set.
 set -eu
 
 : "${IN:?IN not set}"

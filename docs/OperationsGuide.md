@@ -11,6 +11,9 @@ docker compose up -d --build
 
 NOTE: always re-run `env-setup.sh` after every update! It preserves your existing choices between runs, so re-running is safe and easy.
 
+NOTE: for safety, do `docker compose down` before re-running `env-setup.sh`, and then run `docker compose up -d` to restart the stack. (This makes sure freshly-rendered files are mounted into the services properly.)
+
+
 # Managing Users
 
 You only need to add a new system user if you want to grant SFTP/SMB access. Otherwise, each service (Jellyfin, Audiobookshelf, etc.) manages their own user list.

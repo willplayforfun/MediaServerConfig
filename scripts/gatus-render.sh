@@ -11,12 +11,6 @@ mkdir -p "$OUT"
 # mtime moves, so a disabled profile's file vanishing alone wouldn't trigger it.
 rm -f "$OUT"/*.yaml
 cp "$REPO/gatus/config.yaml" "$OUT/00-core.yaml"
-
-for profile in $(echo "${COMPOSE_PROFILES:-}" | tr ',' ' '); do
-    if [ -f "$REPO/$profile/gatus.yaml" ]; then
-        cp "$REPO/$profile/gatus.yaml" "$OUT/$profile.yaml"
-        echo "monitoring $profile"
-    fi
-done
+/bin/sh "$(dirname "$0")/collect-profile-files.sh" gatus.yaml "$OUT"
 
 chmod -R a+rX "$OUT"

@@ -1,0 +1,37 @@
+# Plex can't live under a subpath, so it gets its own TLS port. The certificate
+# covers the hostname regardless of port.
+server {
+    listen ${PLEX_HTTPS_PORT} ssl;
+    server_name _;
+
+    ssl_certificate     /etc/letsencrypt/live/homeserver/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/homeserver/privkey.pem;
+
+    ssl_protocols             TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Needed here too: this server doesn't include the locations' resolver.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    location / {
+        set $plex_upstream plex;
+        proxy_pass http://$plex_upstream:32400;
+
+        proxy_set_header Host              $http_host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Ssl   on;
+
+        # WebSocket support (Plex uses it for live notifications)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_buffering off;
+
+        # Plex generates http:// Location headers regardless of X-Forwarded-Proto;
+        # rewrite them to https:// before they reach the browser.
+        proxy_redirect http:// https://;
+    }
+}

@@ -8,7 +8,7 @@
 #   Standalone binds port 80 directly; nginx hasn't started yet so the port is free.
 #
 # The cert is always named 'homeserver' (--cert-name) so the path is fixed
-# regardless of which domain is used, and nginx.conf needs no templating.
+# regardless of which domain is used, and the nginx config needs no templating.
 #
 # Required environment variables:
 #   DOMAIN  – the public FQDN, e.g. myserver.ddns.net

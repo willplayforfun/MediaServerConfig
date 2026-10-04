@@ -1,0 +1,4 @@
+# Launcher only: Plex itself is served on its own port (nginx-server.conf).
+location = /plex {
+    return 302 https://$host:${PLEX_HTTPS_PORT}/web;
+}

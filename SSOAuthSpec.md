@@ -60,7 +60,7 @@ The office server (`OfficeServerConfig`) runs Keycloak. Confirmed details:
 ### DNS — verify this first
 
 `*.mlev.net` LAN records resolve to `192.168.10.42` via the **router's** resolver. This stack runs
-its own `dnsmasq` ([docker-compose.yml:170](docker-compose.yml:170)) forwarding to `${DNS1}`/`${DNS2}`,
+its own `dnsmasq` ([docker-compose.yml:198](docker-compose.yml:198)) forwarding to `${DNS1}`/`${DNS2}`,
 with an empty [local.conf.tmpl](dnsmasq/local.conf.tmpl).
 
 **If `DNS1` is the router, this works. If it's a public resolver, `keycloak.mlev.net` will resolve
@@ -150,7 +150,8 @@ the shape the office stack already runs successfully, so it's well-trodden rathe
 ## The toggle mechanism
 
 The repo renders nginx config through `envsubst`
-([nginx-render](docker-compose.yml:46) → [locations.conf.tmpl](nginx-configs/locations.conf.tmpl)).
+([nginx-render](docker-compose.yml:42) → [nginx-render.sh](scripts/nginx-render.sh), which assembles
+each enabled service's `<service>/nginx-locations.conf[.tmpl]`; only `.tmpl` files are rendered).
 
 **Confirmed implementation risk (previously flagged as open):** the renderer
 ([render-templates.sh](template_rendering/render-templates.sh)) is plain `envsubst` over an
@@ -171,7 +172,7 @@ Two options:
 **Recommend (B).** It was designed for.
 
 Whichever is chosen: new vars must be added to the `VARS` allowlist
-([docker-compose.yml:58](docker-compose.yml:58)), and nginx runtime `$variables` must stay out of
+([docker-compose.yml:56](docker-compose.yml:56)), and nginx runtime `$variables` must stay out of
 that allowlist as they do today.
 
 ---
@@ -214,7 +215,7 @@ Notes on the table:
   `?allowed_groups=grp-<svc>`. This is exactly what the office stack does for its own oauth2-proxy.
   **This is the one place the `groups` scope must be explicitly wired.**
 - **Jellyfin's redirect path is subpath-sensitive.** Jellyfin is proxied at `/jellyfin/`
-  ([locations.conf.tmpl:29](nginx-configs/locations.conf.tmpl:29)) and `JELLYFIN_PublishedServerUrl`
+  ([nginx-locations.conf:4](jellyfin/nginx-locations.conf:4)) and `JELLYFIN_PublishedServerUrl`
   is already `https://${DOMAIN}/jellyfin`. The plugin's callback is
   `/sso/OID/redirect/<PROVIDER_NAME>`; `PROVIDER_NAME` must match the name configured in the plugin
   exactly. Confirm the rendered URL against a live login attempt before finalising — a wrong path
@@ -235,7 +236,7 @@ to that repo, and is lost on any realm rebuild. Migrate to the proper path.
 
 ### Forward-auth group — Stash
 
-Stash ([locations.conf.tmpl:109](nginx-configs/locations.conf.tmpl:109)) is the ideal case: single
+Stash ([nginx-locations.conf:1](stash/nginx-locations.conf:1)) is the ideal case: single
 shared password, browser-only, no API clients.
 
 Add conditionally to the `location` block:
@@ -298,7 +299,7 @@ No nginx auth changes; keep the current proxy blocks. Configure OIDC inside the 
 - Conditional env vars in the `navidrome` block (`ND_REVERSEPROXY*`), defaulted so `_AUTH=none`
   injects nothing functional.
 - Loopback-bind or remove published ports for any gated service (see the caveat section).
-- New vars threaded into [nginx-render](docker-compose.yml:46)'s `VARS` allowlist.
+- New vars threaded into [nginx-render](docker-compose.yml:42)'s `VARS` allowlist.
 
 ## env-setup.sh / env-lib.sh changes
 

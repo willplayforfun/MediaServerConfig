@@ -1,10 +1,13 @@
 # env-setup.sh module (see "Service modules" in env-lib.sh).
 register_service plex "Plex (video streaming)" N
 
-# nginx publishes PLEX_HTTPS_PORT even when Plex is off, so it always needs a value.
+# nginx publishes the port even with Plex off, so check it here (validate hooks
+# skip disabled services).
 plex_defaults() {
     : "${PLEX_CLAIM:=}"
     : "${PLEX_HTTPS_PORT:=8443}"
+    valid_port "${PLEX_HTTPS_PORT}" \
+        || fail "PLEX_HTTPS_PORT '${PLEX_HTTPS_PORT}' must be a number between 1 and 65535."
 }
 
 plex_prompt() {
@@ -17,11 +20,6 @@ plex_prompt() {
         read -r -p "  Enter a port number from 1 to 65535: " PLEX_HTTPS_PORT
     done
     echo "  Remember to forward external port ${PLEX_HTTPS_PORT} for remote access."
-}
-
-plex_validate() {
-    valid_port "${PLEX_HTTPS_PORT}" \
-        || fail "PLEX_HTTPS_PORT '${PLEX_HTTPS_PORT}' must be a number between 1 and 65535."
 }
 
 plex_env() {

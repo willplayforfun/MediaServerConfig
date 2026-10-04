@@ -1,10 +1,5 @@
-# Renderer image used by helpsite-render and dnsmasq-render in docker-compose.yml.
-# Tiny Alpine layer with envsubst (gettext) and render-templates.sh baked in,
-# so the renderer containers don't have to install a package on every `up`.
-#
-# Build context is ./scripts so the COPY below stays cheap; see scripts/.dockerignore.
-# To swap envsubst for a more capable engine (gomplate, jinja, ...), change the
-# package install and the entrypoint here, plus the rendering line in the script.
+# Image for the *-render services (homeserver-renderer:local). envsubst is
+# baked in so they don't install a package on every `up`.
 FROM alpine:3.20
 
 RUN apk add --no-cache gettext

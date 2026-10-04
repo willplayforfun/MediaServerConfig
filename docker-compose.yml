@@ -1,8 +1,7 @@
-# Core infrastructure (reverse proxy, TLS, DNS, health monitoring) is defined in
-# this file and always runs. Each optional service lives in its own directory
-# with its own compose.yml, enabled through its profile in COMPOSE_PROFILES
-# (env-setup.sh sets that), and a gatus.yaml for its health checks. Relative paths in an included file resolve against that file's
-# directory, so e.g. ./config in jellyfin/compose.yml means jellyfin/config.
+# Core infrastructure, always running. Each optional service has its own
+# directory (compose.yml, env.sh, gatus.yaml, nginx-*.conf) and is enabled by
+# its profile in COMPOSE_PROFILES. Relative paths in an included file resolve
+# against its own directory, so ./config in jellyfin/compose.yml is jellyfin/config.
 include:
   - jellyfin/compose.yml
   - plex/compose.yml
@@ -18,8 +17,7 @@ include:
 
 services:
   # ── Helpsite Render ────────────────────────────────────────────────────────
-  # One-shot. Walks ./helpsite, renders any *.tmpl files into ./helpsite-rendered
-  # via envsubst, copies non-template files verbatim. nginx serves the output.
+  # One-shot. Renders ./helpsite into ./helpsite-rendered, which nginx serves.
   helpsite-render:
     build:
       context: ./template_rendering
@@ -32,17 +30,15 @@ services:
     environment:
       - IN=/in
       - OUT=/out
-      # The literal string passed to envsubst as its allowlist. The $$ escapes
-      # are needed so docker-compose doesn't try to expand these itself.
+      # envsubst's allowlist; $$ stops Compose expanding it.
       - VARS=$${DOMAIN} $${PLEX_HTTPS_PORT}
       - DOMAIN=${DOMAIN}
       - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
 
   # ── Nginx Config Render ──────────────────────────────────────────────────────
-  # One-shot. Renders ./nginx-configs/*.tmpl into ./nginx-configs-rendered via
-  # envsubst (so the Plex HTTPS port is injected), then nginx mounts the output.
-  # nginx runtime $variables ($host, $scheme, ...) are NOT in the allowlist, so
-  # envsubst leaves them untouched.
+  # One-shot. Assembles ./nginx-configs-rendered (core plus the enabled profiles'
+  # nginx-*.conf) for nginx to mount. envsubst runs on .tmpl files only, and its
+  # allowlist leaves nginx's own $variables ($host, $scheme, ...) untouched.
   nginx-render:
     build:
       context: ./template_rendering
@@ -50,13 +46,16 @@ services:
     image: homeserver-renderer:local
     pull_policy: never
     volumes:
-      - ./nginx-configs:/in:ro
+      - .:/repo:ro
       - ./nginx-configs-rendered:/out
+      - ./scripts:/scripts:ro
     environment:
-      - IN=/in
+      - REPO=/repo
       - OUT=/out
+      - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
       - VARS=$${PLEX_HTTPS_PORT}
       - PLEX_HTTPS_PORT=${PLEX_HTTPS_PORT}
+    entrypoint: ["/bin/sh", "/scripts/nginx-render.sh"]
 
   # ── dnsmasq Render ─────────────────────────────────────────────────────────
   dnsmasq-render:
@@ -82,12 +81,12 @@ services:
     volumes:
       - .:/repo:ro
       - ./gatus-rendered:/out
-      - ./scripts/gatus-render.sh:/gatus-render.sh:ro
+      - ./scripts:/scripts:ro
     environment:
       - REPO=/repo
       - OUT=/out
       - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
-    entrypoint: ["/bin/sh", "/gatus-render.sh"]
+    entrypoint: ["/bin/sh", "/scripts/gatus-render.sh"]
 
   # ── Gatus ──────────────────────────────────────────────────────────────────
   # Health dashboard for every enabled service. LAN only, on its own port:
@@ -110,10 +109,8 @@ services:
       - ./gatus/data:/data
 
   # ── Cert Init ──────────────────────────────────────────────────────────────
-  # One-shot service. Runs before nginx starts.
-  # Fast exit if certificates already exist; otherwise issues them via
-  # certbot standalone (binds port 80 directly while nginx is not yet running).
-  # Set STAGING=1 in .env to test with the Let's Encrypt staging CA first.
+  # One-shot, before nginx. Issues the certificate with certbot standalone if
+  # it doesn't exist yet. STAGING=1 in .env uses Let's Encrypt's staging CA.
   cert-init:
     image: certbot/certbot
     ports:
@@ -138,7 +135,8 @@ services:
     # nginx can bind :443/:${PLEX_HTTPS_PORT}, and the config must be rendered
     # first. nginx does NOT depend on any media service — upstreams are resolved
     # at request time (see resolver in the rendered configs), so a disabled or
-    # down backend returns 502 instead of blocking nginx startup.
+    # down backend returns 502 instead of blocking nginx startup. A re-render
+    # isn't picked up until nginx reloads (docs/OperationsGuide.md).
     depends_on:
       cert-init:
         condition: service_completed_successfully
@@ -151,17 +149,14 @@ services:
       - "443:443"
       - "${PLEX_HTTPS_PORT}:${PLEX_HTTPS_PORT}"   # Plex HTTPS (proxied at root)
     volumes:
-      - ./nginx-configs-rendered/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx-configs-rendered/locations.conf:/etc/nginx/locations.conf:ro
+      - ./nginx-configs-rendered:/etc/nginx/conf.d:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./helpsite-rendered:/usr/share/nginx/html:ro
 
   # ── Certbot Renewal ────────────────────────────────────────────────────────
-  # Long-running loop that checks for renewal every 12 hours.
-  # Uses webroot mode (nginx serves the ACME challenge path).
-  # Reloads nginx after a successful renewal via docker exec.
-  # Requires the Docker socket so it can reach the nginx container.
+  # Tries renewal every 12 hours through nginx's ACME path, then reloads nginx
+  # (hence the Docker socket).
   certbot-renew:
     image: certbot/certbot
     restart: unless-stopped
@@ -199,8 +194,7 @@ services:
     network_mode: host   # needed so it can detect your real public IP
 
   # ── dnsmasq (local DNS) ────────────────────────────────────────────────────
-  # The address mapping at ./dnsmasq-rendered/local.conf is generated by
-  # dnsmasq-render from ./dnsmasq/local.conf.tmpl on each `up`.
+  # Resolves ${DOMAIN} to the LAN IP for local clients (config from dnsmasq-render).
   dnsmasq:
     image: dockurr/dnsmasq:latest
     container_name: dnsmasq
@@ -218,15 +212,13 @@ services:
       - ./dnsmasq-rendered:/etc/dnsmasq.d:ro
 
   # ── Internal DNS sync (router host override) ───────────────────────────────
-  # One-shot. Pushes a ${DOMAIN} -> ${LOCAL_IP} host-override record to the
-  # router's own DNS resolver (OPNsense/Unbound via API).
-  # Runs to completion on every `up`. Exits 0 immediately when
-  # INTERNAL_DNS_ADAPTER is unset, so it is inert until configured.
+  # One-shot on every `up`. Pushes a ${DOMAIN} -> ${LOCAL_IP} host override to
+  # the router's DNS (OPNsense). Does nothing while INTERNAL_DNS_ADAPTER is unset.
   internal-dns-init:
     image: python:3.13-alpine
     container_name: internal-dns-init
     restart: "no"
-    # Pure stdlib Python — no pip install step needed.
+    # Stdlib only, so no pip install.
     command: ["python3", "/scripts/sync-internal-dns.py"]
     environment:
       - DOMAIN=${DOMAIN}
@@ -235,7 +227,7 @@ services:
       - DNS_CLEANUP=${DNS_CLEANUP:-true}
       - INTERNAL_DNS_MARKER=${INTERNAL_DNS_MARKER:-}
       - DRY_RUN=${DRY_RUN:-}
-      # OPNsense adapter properties
+      # OPNsense adapter
       - OPNSENSE_URL=${OPNSENSE_URL:-}
       - OPNSENSE_API_KEY=${OPNSENSE_API_KEY:-}
       - OPNSENSE_API_SECRET=${OPNSENSE_API_SECRET:-}
