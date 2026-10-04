@@ -6,7 +6,11 @@
 #    hardware decode.
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Keeps downloaded .debs between builds (Debian's docker-clean hook would delete them).
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         cog \
         libegl1 \
         libgles2 \
@@ -21,10 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         intel-media-va-driver \
         mesa-va-drivers \
         fonts-dejavu-core \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+        ca-certificates
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]

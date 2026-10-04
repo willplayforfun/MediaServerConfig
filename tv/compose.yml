@@ -26,6 +26,7 @@ x-tv-browser: &tv-browser
     - /etc/localtime:/etc/localtime:ro
     - /run/udev:/run/udev:ro   # libinput needs it to see input devices
     - ./apps-rendered:/config:ro
+    - ./browser/entrypoint.sh:/entrypoint.sh:ro   # edit + `docker restart`, no rebuild
 
 services:
   # One-shot. Renders apps/ into apps-rendered/ (see template_rendering/).
@@ -97,6 +98,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /run/udev:/run/udev:ro
       - ./apps-rendered:/config:ro
+      - ./browser/entrypoint.sh:/entrypoint.sh:ro
       - ./data/youtube:/data   # keeps the YouTube sign-in
 
   # Own image (Qt/eglfs, not Cog), but the same device/volume setup.
@@ -116,4 +118,5 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /run/udev:/run/udev:ro
       - ./apps-rendered:/config:ro
+      - ./jellyfin/entrypoint.sh:/entrypoint.sh:ro
       - ./data/jellyfin:/data   # keeps the server address and sign-in
