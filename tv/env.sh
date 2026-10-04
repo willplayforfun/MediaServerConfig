@@ -55,12 +55,32 @@ tv_prompt() {
 
     ask_required HOME_KEY "  Key name evtest reported for the remote's Home button (or its numeric code)"
     ask SLEEP_KEY "  Optional button that turns the display off straight away (Enter to skip)"
+
+    local -a audio
     if command -v aplay >/dev/null 2>&1; then
-        echo "  HDMI audio devices on this host (with the TV apps stopped, test one with"
-        echo "  'speaker-test -D <device> -c 2 -t sine -l 1'):"
-        aplay -L 2>/dev/null | grep '^hdmi:' | sed 's/^/    /' || echo "    (none found)"
+        mapfile -t audio < <(aplay -L 2>/dev/null | grep '^hdmi:')
     fi
-    ask TV_AUDIO_DEVICE "  ALSA device for HDMI audio"
+    if [ ${#audio[@]} -eq 0 ]; then
+        echo "  No HDMI audio devices found on this host."
+        ask TV_AUDIO_DEVICE "  ALSA device for HDMI audio"
+        return
+    fi
+
+    echo "  HDMI audio devices (with the TV apps stopped, test one with"
+    echo "  'speaker-test -D <device> -c 2 -t sine -l 1'):"
+    for i in "${!audio[@]}"; do
+        printf "    %d) %s\n" "$((i + 1))" "${audio[$i]}"
+    done
+    echo "  Current: ${TV_AUDIO_DEVICE}"
+    while true; do
+        read -r -p "  HDMI audio device number (Enter = keep current): " sel
+        [ -z "$sel" ] && break
+        if [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le ${#audio[@]} ]; then
+            TV_AUDIO_DEVICE="${audio[$((sel - 1))]}"
+            break
+        fi
+        echo "  '$sel' isn't one of the listed numbers."
+    done
 }
 
 tv_env() {
