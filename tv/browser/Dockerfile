@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgles2 \
         libgl1-mesa-dri \
         gstreamer1.0-alsa \
+        gstreamer1.0-gl \
         gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-bad \
