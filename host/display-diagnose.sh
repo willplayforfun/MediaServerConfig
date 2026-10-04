@@ -8,7 +8,7 @@
 # Changes nothing. Useful for debugging via AI.
 #
 # Usage:
-#   sudo bash scripts/display-diagnose.sh
+#   sudo bash host/display-diagnose.sh
 
 set -u
 

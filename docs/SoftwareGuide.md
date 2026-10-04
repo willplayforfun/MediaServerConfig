@@ -301,4 +301,4 @@ If you are using the TV app or Kodi, and having issues with audio over HDMI, try
 
 If you want to try having your server fans run quieter, run `host/install-fan-control.sh`. This is untested, and unfortunately H110 motherboards don't support adjusting fan speed. I ultimately added a physical fan speed controller to my build.
 
-Use `scripts/display-diagnose.sh` to get a good set of diagnostics for debugging HDMI output issues with an AI.
+Use `host/display-diagnose.sh` to get a good set of diagnostics for debugging HDMI output issues with an AI.

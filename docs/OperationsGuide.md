@@ -117,4 +117,4 @@ Setup notes:
   - put the one that plays in `TV_AUDIO_DEVICE`. On Intel graphics it's usually one of `hdmi:CARD=PCH,DEV=0`, `DEV=1` or `DEV=2`.
   - If none play, see `host/install-hdmi-audio-fix.sh`.
 - To change the TV settings, re-run `env-setup.sh`, then run `docker compose up -d`.
-- Troubleshooting: `sudo bash scripts/display-diagnose.sh`, and `docker logs tv-hub`.
+- Troubleshooting: `sudo bash host/display-diagnose.sh`, and `docker logs tv-hub`.
