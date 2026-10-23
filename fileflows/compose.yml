@@ -6,7 +6,9 @@ services:
   # directly via its published port rather than proxied.
   # Hardware encoding via /dev/dri mirrors Jellyfin's Quick Sync setup.
   fileflows:
-    image: revenz/fileflows:latest
+    image: revenz/fileflows:26.10
+    labels:
+      wud.tag.include: '^\d+\.\d+$$'
     container_name: fileflows
     profiles: ["fileflows"]
     restart: unless-stopped

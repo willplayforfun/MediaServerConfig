@@ -248,6 +248,7 @@ EOF
         fi
         echo "Enabled services: ${COMPOSE_PROFILES:-<none>}"
         echo "Status (LAN):     http://${LOCAL_IP}:8090"
+        echo "Updates (LAN):    http://${LOCAL_IP}:3000"
         run_hooks summary
     } >&2
 }

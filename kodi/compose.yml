@@ -8,14 +8,13 @@ services:
       context: .
       dockerfile: Dockerfile
     image: homeserver-kodi:local
+    labels:
+      wud.watch: "false"
     pull_policy: never
     container_name: kodi
     profiles: ["kodi"]
     restart: unless-stopped
     init: true   # PID 1 must reap Kodi's subprocesses under GBM
-    # The image's default CMD runs a kodi-gbm binary that Kodi 21+ no longer
-    # ships; --windowing=gbm is what selects DRM/KMS output now.
-    command: ["/usr/bin/kodi-standalone", "--windowing=gbm"]
     devices:
       - /dev/dri:/dev/dri
       - /dev/snd:/dev/snd

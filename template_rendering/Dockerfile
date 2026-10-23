@@ -1,6 +1,6 @@
 # Image for the *-render services (homeserver-renderer:local). envsubst is
 # baked in so they don't install a package on every `up`.
-FROM alpine:3.20
+FROM alpine:3.24
 
 RUN apk add --no-cache gettext
 

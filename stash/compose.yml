@@ -1,7 +1,9 @@
 services:
   # ── Stash ──────────────────────────────────────────────────────────────────
   stash:
-    image: stashapp/stash:latest
+    image: stashapp/stash:v0.31.1
+    labels:
+      wud.tag.include: '^v\d+\.\d+\.\d+$$'
     container_name: stash
     profiles: ["stash"]
     restart: unless-stopped
@@ -37,7 +39,12 @@ services:
   # use the static IP. In Stash, set Settings → System → Scraping → Chrome
   # CDP Path to http://172.28.1.10:9222/json/version
   stash-chrome:
-    image: chromedp/headless-shell:latest
+    # dev and beta builds use the same version tags as stable,
+    # so WUD watches `stable` for a new digest instead.
+    # Update with `docker compose pull stash-chrome`
+    image: chromedp/headless-shell:stable
+    labels:
+      wud.watch.digest: "true"
     container_name: stash-chrome
     profiles: ["stash"]
     restart: unless-stopped

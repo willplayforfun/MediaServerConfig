@@ -4,7 +4,9 @@ services:
   # which does not cross Docker's bridge network, so this runs
   # with host networking.
   universalmediaserver:
-    image: universalmediaserver/ums:latest
+    image: universalmediaserver/ums:15.9.0
+    labels:
+      wud.tag.include: '^\d+\.\d+\.\d+$$'
     container_name: universalmediaserver
     profiles: ["universalmediaserver"]
     depends_on:
@@ -25,7 +27,9 @@ services:
   # One-shot. SHARED.conf and UMS.conf are live application state (UMS
   # rewrites them as settings change), so they get seeded in on first run.
   universalmediaserver-init:
-    image: alpine:latest
+    image: alpine:3.24.2
+    labels:
+      wud.tag.include: '^\d+\.\d+\.\d+$$'
     container_name: universalmediaserver-init
     profiles: ["universalmediaserver"]
     environment:

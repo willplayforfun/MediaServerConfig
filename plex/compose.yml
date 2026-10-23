@@ -3,7 +3,9 @@ services:
   # Nginx terminates TLS on ${PLEX_HTTPS_PORT} and proxies Plex at the root
   # (Plex can't live under a subpath like /jellyfin).
   plex:
-    image: plexinc/pms-docker:latest
+    image: plexinc/pms-docker:1.43.4.10903-e5521bd8c
+    labels:
+      wud.tag.include: '^\d+\.\d+\.\d+\.\d+-[0-9a-f]+$$'
     container_name: plex
     profiles: ["plex"]
     restart: unless-stopped

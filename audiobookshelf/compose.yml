@@ -2,7 +2,9 @@ services:
   # ── Audiobookshelf ─────────────────────────────────────────────────────────
   # Hardcoded /audiobookshelf base path. Works out of the box.
   audiobookshelf:
-    image: ghcr.io/advplyr/audiobookshelf:latest
+    image: ghcr.io/advplyr/audiobookshelf:2.37.1
+    labels:
+      wud.tag.include: '^\d+\.\d+\.\d+$$'
     container_name: audiobookshelf
     profiles: ["audiobookshelf"]
     restart: unless-stopped

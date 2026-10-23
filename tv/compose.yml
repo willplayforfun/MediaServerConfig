@@ -11,6 +11,8 @@ x-tv-browser: &tv-browser
   build:
     context: ./browser
   image: homeserver-tv-browser:local
+  labels:
+    wud.watch: "false"
   pull_policy: never
   profiles: ["tv-apps"]
   restart: "no"
@@ -35,6 +37,8 @@ services:
       context: ../template_rendering
       dockerfile: Dockerfile
     image: homeserver-renderer:local
+    labels:
+      wud.watch: "false"
     pull_policy: never
     profiles: ["tv"]
     volumes:
@@ -50,6 +54,8 @@ services:
     build:
       context: ./hub
     image: homeserver-tv-hub:local
+    labels:
+      wud.watch: "false"
     pull_policy: never
     container_name: tv-hub
     profiles: ["tv"]
@@ -107,6 +113,8 @@ services:
     build:
       context: ./jellyfin
     image: homeserver-tv-jellyfin:local
+    labels:
+      wud.watch: "false"
     container_name: tv-jellyfin
     shm_size: 512m   # Chromium crashes on Docker's 64 MB default
     environment:

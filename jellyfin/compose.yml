@@ -1,7 +1,9 @@
 services:
   # ── Jellyfin ───────────────────────────────────────────────────────────────
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: jellyfin/jellyfin:12.2
+    labels:
+      wud.tag.include: '^\d+\.\d+$$'
     container_name: jellyfin
     profiles: ["jellyfin"]
     restart: unless-stopped

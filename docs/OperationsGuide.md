@@ -13,6 +13,17 @@ NOTE: always re-run `env-setup.sh` after every update! It preserves your existin
 
 NOTE: for safety, do `docker compose down` before re-running `env-setup.sh`, and then run `docker compose up -d` to restart the stack. (This makes sure freshly-rendered files are mounted into the services properly.)
 
+## Updating Docker Images
+
+Every image is pinned to an exact version. What's Up Docker (WUD, `http://<LAN IP>:3000`) checks and lists the containers with a newer version.
+
+To take an update:
+1. Read the release notes (or have AI do it) to see if any migration steps are needed.
+2. Change the tag in that service's `compose.yml` (or `docker-compose.yml` for the core services).
+3. Update the server as above.
+
+The Jellyfin TV app's version is pinned separately, as `JF_VERSION` in `tv/jellyfin/Dockerfile`; check its [releases](https://github.com/jellyfin/jellyfin-desktop/releases) by hand.
+
 
 # Managing Users
 
@@ -103,6 +114,9 @@ If you are curious which ports are relevant:
 
 ### Gatus
 - 8090 - status dashboard showing the health of every enabled service
+
+### What's Up Docker (WUD)
+- 3000 - lists images with a newer version available
 
 
 # TV Launcher App

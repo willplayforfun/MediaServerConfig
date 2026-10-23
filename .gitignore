@@ -11,6 +11,9 @@
 */blobs/
 */transcode/
 
+# WUD's database of seen tags
+wud/store/
+
 # Certbot runtime data (certs, accounts, ACME challenges)
 certbot/conf/
 certbot/www/

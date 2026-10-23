@@ -1,7 +1,9 @@
 services:
   # ── Navidrome ──────────────────────────────────────────────────────────────
   navidrome:
-    image: deluan/navidrome:latest
+    image: deluan/navidrome:0.64.2
+    labels:
+      wud.tag.include: '^\d+\.\d+\.\d+$$'
     container_name: navidrome
     profiles: ["navidrome"]
     restart: unless-stopped

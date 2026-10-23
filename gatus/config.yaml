@@ -36,3 +36,9 @@ endpoints:
     conditions:
       - "[DNS_RCODE] == NOERROR"
       - "[BODY] == ${LOCAL_IP}"
+
+  - name: WUD
+    group: Infrastructure
+    url: http://wud:3000/health
+    conditions:
+      - "[STATUS] == 200"

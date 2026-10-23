@@ -11,7 +11,7 @@
 name: tv-test
 
 x-placeholder: &placeholder
-  image: alpine:3.20
+  image: alpine:3.24.2
   command: ["sleep", "infinity"]
   init: true
   profiles: ["apps"]
