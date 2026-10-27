@@ -1,0 +1,25 @@
+# Repo layout
+
+- **Root `docker-compose.yml`**: core infrastructure only (nginx, certbot, the template renderers, dnsmasq, DDNS, internal DNS sync, Gatus). It `include:`s one `compose.yml` per optional service.
+- **Gatus** health checks are per service: `<dir>/gatus.yaml`, where the directory name must match the profile name. On each `up`, `gatus-render` copies `gatus/config.yaml` (core settings and infrastructure checks) plus the `gatus.yaml` of each profile in `COMPOSE_PROFILES` into `gatus-rendered/`, and Gatus merges that directory. Only `gatus/config.yaml` may set top-level scalars (`ui`, `storage`); Gatus rejects any scalar defined twice.
+- **nginx** config is per service too. `nginx-configs/` holds the core only: `default.conf` (the port-80 and port-443 servers, including the ACME challenge location; both include `conf.d/locations/*.conf`) and `locations/core.conf` (resolver, help site). On each `up`, `nginx-render` (`scripts/nginx-render.sh`) empties `nginx-configs-rendered/`, copies the core into it, then collects from each profile in `COMPOSE_PROFILES`:
+  - `<dir>/nginx-locations.conf` becomes `locations/<profile>.conf`, included inside the port-80 and port-443 servers;
+  - `<dir>/nginx-server.conf` (optional; only Plex has one) becomes `<profile>.conf`, picked up by the image's `conf.d/*.conf` glob as an http-level `server`.
+  - A source with an extra `.tmpl` suffix goes through `envsubst` with the `VARS` allowlist in the `nginx-render` service. Only Plex needs it, for `${PLEX_HTTPS_PORT}`.
+  - `scripts/collect-profile-files.sh` does the per-profile collecting for both nginx and Gatus.
+  - Upstreams must stay per-request (`set $x_upstream name;` + `proxy_pass http://$x_upstream:port`), so a disabled or down service gives 502 rather than stopping nginx.
+  - nginx needs a reload after a re-render; see `docs/OperationsGuide.md`.
+  - Root `nginx` always publishes `${PLEX_HTTPS_PORT}`, since an included compose file can't add ports to a parent's service. With Plex off nothing listens on it, and `plex_defaults` still validates the value because compose needs it.
+  - To test: render with different `COMPOSE_PROFILES`, then compare `nginx -T` (`nginx:alpine`, rendered dir mounted at `/etc/nginx/conf.d`, a self-signed cert at `/etc/letsencrypt/live/homeserver/`) with a baseline.
+- **One directory per optional service** (`jellyfin/`, `plex/`, `stash/`, `tv/`, `kodi/`, ...): its `compose.yml`, any files it mounts, its helper scripts (e.g. `kodi/reset-config.sh`), and its runtime data (`config/`, `data/`, ... are gitignored).
+  - Relative paths in an included file resolve against that file's directory, so `./config` in `jellyfin/compose.yml` is `jellyfin/config`. Runtime data never moved when services were split out.
+  - Adding a service: create `<name>/compose.yml` with a profile, `<name>/env.sh` and `<name>/gatus.yaml`, plus `<name>/nginx-locations.conf` if nginx proxies it (and `nginx-server.conf` if it needs its own port). Then add the name to the root `include:` list and to `SERVICES` in `env-lib.sh`. Nothing in `nginx-configs/` changes.
+- **Media paths** use `${MEDIA_ROOT:?run env-setup.sh}` (default `/srv/mergerfs/media`). The `:?` fails loudly instead of silently mounting empty host paths.
+- **`scripts/`**: scripts mounted into infrastructure containers (cert-init, certbot-renew, sync-internal-dns, gatus-render, nginx-render, collect-profile-files).
+- **`host/`**: installers, helpers and diagnostics that run on the host OS, not in Docker (fan control, HDMI audio fix, OMV-Extras, `display-diagnose.sh`).
+- **`docs/`**: the user-facing `*Guide.md` files. `README.md` and `SSOAuthSpec.md` stay at the root.
+- **Env scripts**: `env-setup.sh` (interactive) and `env-generate.sh` (non-interactive) handle the core settings, then hand each service's settings to its `<name>/env.sh` module. Both write `.env` through `write_env` in `env-lib.sh`.
+  - `SERVICES` in `env-lib.sh` lists the modules, in the order `env-setup.sh` asks about them. The hooks a module can define are listed under "Service modules" there.
+  - A module's `defaults` and `env` hooks run even while the service is off, so its settings survive being turned off and on.
+  - Services registered in the `display` group (`tv`, `kodi`) drive the HDMI output, so at most one is enabled. `env-setup.sh` offers them as a pick-one menu and removes the other's containers; `env-generate.sh` keeps the first and drops the rest with a warning.
+  - To test changes on the dev machine, run the old and new scripts in a scratch copy with the same inputs (stdin answers for `env-setup.sh`, env vars for `env-generate.sh`) and diff the sorted settings. Put a fake `docker` first on `PATH`, and use `/tmp/...` paths there, because a `C:` path breaks `PATH`.
