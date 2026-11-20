@@ -5,6 +5,8 @@ set -u
 
 section() { printf '\n===== %s =====\n' "$1"; }
 
+command -v curl >/dev/null || { echo "curl is missing: apt install -y curl, then re-run"; exit 1; }
+
 section "Host"
 grep PRETTY_NAME /etc/os-release
 uname -r
@@ -17,6 +19,7 @@ ss -tulnp
 
 section "Published container ports"
 docker ps --format 'table {{.Names}}\t{{.Ports}}'
+docker ps -a --format 'table {{.Names}}\t{{.Status}}'
 
 section "Container privileges"
 docker ps -aq | xargs docker inspect --format \
@@ -36,17 +39,27 @@ done
 
 section "Firewall"
 iptables -S DOCKER-USER 2>&1
-ufw status verbose 2>&1 | head -20
+{ command -v ufw >/dev/null && ufw status verbose || echo "ufw: not installed"; } 2>&1 | head -20
 nft list ruleset 2>/dev/null | grep -cE 'drop|reject' | sed 's/^/nft drop-or-reject rules: /'
 sysctl net.ipv4.ip_forward net.ipv6.conf.all.disable_ipv6
+ip -br addr | grep -v veth
+echo "global IPv6 addresses:"; ip -6 addr show scope global | grep -v veth
 
 section "SSH"
 sshd -T 2>/dev/null | grep -Ei '^(port|permitrootlogin|passwordauthentication|pubkeyauthentication|kbdinteractiveauthentication|permitemptypasswords|maxauthtries|allowusers|allowgroups|allowtcpforwarding|x11forwarding) '
-grep -RhsE '^\s*(Match|ChrootDirectory|ForceCommand|Port|PasswordAuthentication|PermitRootLogin)' /etc/ssh/sshd_config /etc/ssh/sshd_config.d /etc/ssh/sshd_config_sftp 2>/dev/null
+ps -eo args | grep '[s]shd'
+for f in /etc/ssh/sshd_config*; do [ -f "$f" ] && { echo "-- $f"; grep -vE '^\s*(#|$)' "$f"; }; done
+echo "-- sftp-access group: $(getent group sftp-access | cut -d: -f4)"
+systemctl is-active fail2ban 2>&1 | sed 's/^/fail2ban: /'
 fail2ban-client status 2>&1 | head -10
+ls /etc/fail2ban/jail.d 2>&1
 for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
   [ -f "$f" ] && echo "$f: $(grep -cE '^(ssh|ecdsa|sk-)' "$f") keys"
 done
+
+section "Other host services"
+for s in rpcbind avahi-daemon wsdd smbd nfs-server systemd-resolved; do echo "$s: $(systemctl is-active $s 2>&1)"; done
+resolvectl status 2>/dev/null | grep -iE 'llmnr|mdns' | sort -u
 
 section "Accounts"
 echo "uid 0: $(awk -F: '$3==0{print $1}' /etc/passwd | tr '\n' ' ')"

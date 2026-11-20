@@ -4,6 +4,24 @@ Static review of this repo's compose files, nginx config, scripts and docs. The 
 
 Threat model: an attacker either (a) comes in from the internet through the forwarded ports, or (b) is already on the LAN (a compromised laptop, phone, IoT device or guest on the same segment), or (c) has code execution inside one container. The goal is to stop each from reaching the host, and to stop a compromised host or container from reaching the router, the office server and the rest of the homelab.
 
+## Audit results (first run of `host/security-audit.sh`)
+
+Enabled on this server: nginx, Jellyfin, Audiobookshelf, Navidrome, Stash (+ Chrome), Filebrowser, UMS, Gatus, WUD, dnsmasq, Cloudflare DDNS, the TV launcher, certbot-renew. **Not enabled:** Plex, FileFlows, Kodi, No-IP, so their rows below are for reference only.
+
+Confirmed:
+
+- **Docker socket:** read-write in `certbot-renew` and `tv-hub`, read-only mount (still full API) in `wud`. `docker` and `sudo` groups are empty, so root is the only account that can reach it.
+- **No firewall:** `DOCKER-USER` is empty, `ufw` is not installed. Containers on `docker_default` can reach the router (`192.168.10.1`: 22, 80, 443), and the host's SSH (22), workbench (8888) and SMB (445) through the bridge gateway.
+- **Same subnet as the office server:** the media server is `192.168.10.238` and the office server is `192.168.10.42`. There is no network boundary between them.
+- **IPv6:** `docker-proxy` listens on `[::]` for 80, 443, 8443, 8085, 8090, 8096, 9999, 4533 and 13378. If the server has a global IPv6 address and the router allows inbound IPv6, those ports are internet-reachable regardless of IPv4 port forwards (the next audit run prints the address).
+- **fail2ban:** running with **0 jails**, so nothing is being banned. SSH is key-only (`PasswordAuthentication no`, root by key, one key), which limits the impact.
+- **Host listeners beyond the stack:** OMV workbench on 8888 and 4443 (HTTPS), SMB 139/445, rpcbind 111, LLMNR 5355 (systemd-resolved), mDNS 5353 (avahi), WS-Discovery 3702/5357 (wsdd, bound to every Docker bridge), SSDP 1900 and UMS 9001/9002/5001. All on `0.0.0.0`; most also on `[::]`.
+- **dnsmasq** also answers on every Docker bridge address, not only the LAN IP.
+- **Hardening:** no container sets `cap_drop`, `no-new-privileges`, `read_only`, or limits. Only `cloudflare-ddns` runs non-root (image default).
+- **Good:** `.env` is 600, `unattended-upgrades` is active, kernel 7.0.10, no empty passwords, no UID 0 besides root, `allowtcpforwarding no`.
+
+Not yet checked (curl was missing, so every probe came back blank): default Filebrowser password, open Stash/UMS/WUD/Gatus, Jellyfin's public user list, whether Plex-style proxy trust applies. Also unchecked: the port-222 sshd's own config and WUD's state (it is listed as running but is not listening on 3000).
+
 ## 1. Attack surface: WAN vs LAN
 
 **WAN** (router forwards 80, 443, 8443, optionally 222; the Operations Guide also lists 22 as public, so verify): nginx on 80/443 and 8443 (Plex), SFTP, maybe SSH. Through nginx, 443 serves **every enabled service**: Jellyfin, Audiobookshelf, Navidrome, Filebrowser, Stash, help site. Plex is on 8443.
