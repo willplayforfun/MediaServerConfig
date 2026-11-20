@@ -118,12 +118,11 @@ tv_post_setup() {
     mapfile -t apps < <(tv_apps)
     cmd="docker compose --profile tv-apps create --build --force-recreate ${apps[*]}"
     echo
-    if ! confirm "Create or update the TV app containers now (required before the launcher can show anything)?" Y; then
-        echo "  Skipped. Run '${cmd}' before using the launcher."
-    elif ! command -v docker >/dev/null 2>&1; then
+    if ! command -v docker >/dev/null 2>&1; then
         echo "  Warning: docker not found on PATH. Run this manually later:" >&2
         echo "    ${cmd}" >&2
-    elif ( cd "${REPO_DIR}" && docker compose --profile tv-apps create --build --force-recreate "${apps[@]}" ); then
+    elif echo "Creating the TV app containers (needed before the launcher can show anything)..." \
+        && ( cd "${REPO_DIR}" && docker compose --profile tv-apps create --build --force-recreate "${apps[@]}" ); then
         echo "  TV app containers are up to date."
     else
         echo "  Warning: container creation failed. Run this manually once it's fixed:" >&2
