@@ -48,7 +48,7 @@ echo "global IPv6 addresses:"; ip -6 addr show scope global | grep -v veth
 section "SSH"
 sshd -T 2>/dev/null | grep -Ei '^(port|permitrootlogin|passwordauthentication|pubkeyauthentication|kbdinteractiveauthentication|permitemptypasswords|maxauthtries|allowusers|allowgroups|allowtcpforwarding|x11forwarding) '
 ps -eo args | grep '[s]shd'
-for f in /etc/ssh/sshd_config*; do [ -f "$f" ] && { echo "-- $f"; grep -vE '^\s*(#|$)' "$f"; }; done
+for f in /etc/ssh/sshd_config* /etc/ssh/omv_sftp_config; do [ -f "$f" ] && { echo "-- $f"; grep -vE '^\s*(#|$)' "$f"; }; done
 echo "-- sftp-access group: $(getent group sftp-access | cut -d: -f4)"
 systemctl is-active fail2ban 2>&1 | sed 's/^/fail2ban: /'
 fail2ban-client status 2>&1 | head -10
@@ -78,7 +78,7 @@ echo "kodi tcp jsonrpc 9090:      $( { exec 3<>/dev/tcp/127.0.0.1/9090 && printf
 echo "ums web ui 9001:            $(code http://127.0.0.1:9001/)"
 echo "wud containers api:         $(code http://127.0.0.1:3000/api/containers) (200 = no auth)"
 echo "gatus statuses:             $(code http://127.0.0.1:8090/api/v1/endpoints/statuses) (200 = no auth)"
-echo "jellyfin public users:      $(code http://127.0.0.1:8096/Users/Public) (200 = usernames listed to anyone)"
+echo "jellyfin public users:      $(code http://127.0.0.1:8096/jellyfin/Users/Public) (200 = usernames listed to anyone)"
 port=$(grep -E '^PLEX_HTTPS_PORT=' /opt/docker/.env 2>/dev/null | cut -d= -f2); port=${port:-8443}
 echo "plex library, no token via nginx: $(code -k "https://127.0.0.1:${port}/library/sections") (200 = Plex treats the proxy as local; expect 401)"
 

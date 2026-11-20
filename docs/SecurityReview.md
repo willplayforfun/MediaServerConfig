@@ -13,14 +13,22 @@ Confirmed:
 - **Docker socket:** read-write in `certbot-renew` and `tv-hub`, read-only mount (still full API) in `wud`. `docker` and `sudo` groups are empty, so root is the only account that can reach it.
 - **No firewall:** `DOCKER-USER` is empty, `ufw` is not installed. Containers on `docker_default` can reach the router (`192.168.10.1`: 22, 80, 443), and the host's SSH (22), workbench (8888) and SMB (445) through the bridge gateway.
 - **Same subnet as the office server:** the media server is `192.168.10.238` and the office server is `192.168.10.42`. There is no network boundary between them.
-- **IPv6:** `docker-proxy` listens on `[::]` for 80, 443, 8443, 8085, 8090, 8096, 9999, 4533 and 13378. If the server has a global IPv6 address and the router allows inbound IPv6, those ports are internet-reachable regardless of IPv4 port forwards (the next audit run prints the address).
-- **fail2ban:** running with **0 jails**, so nothing is being banned. SSH is key-only (`PasswordAuthentication no`, root by key, one key), which limits the impact.
+- **IPv6:** `docker-proxy` listens on `[::]` for the same published ports, but the server has only link-local IPv6 addresses today, so nothing is reachable over IPv6. That changes if the router starts handing out a global prefix.
+- **fail2ban:** running with **0 jails** (every OMV jail file is `.disabled`), so nothing is being banned. SSH is key-only (`PasswordAuthentication no`, root by key, one key), which limits the impact.
 - **Host listeners beyond the stack:** OMV workbench on 8888 and 4443 (HTTPS), SMB 139/445, rpcbind 111, LLMNR 5355 (systemd-resolved), mDNS 5353 (avahi), WS-Discovery 3702/5357 (wsdd, bound to every Docker bridge), SSDP 1900 and UMS 9001/9002/5001. All on `0.0.0.0`; most also on `[::]`.
 - **dnsmasq** also answers on every Docker bridge address, not only the LAN IP.
 - **Hardening:** no container sets `cap_drop`, `no-new-privileges`, `read_only`, or limits. Only `cloudflare-ddns` runs non-root (image default).
 - **Good:** `.env` is 600, `unattended-upgrades` is active, kernel 7.0.10, no empty passwords, no UID 0 besides root, `allowtcpforwarding no`.
 
-Not yet checked (curl was missing, so every probe came back blank): default Filebrowser password, open Stash/UMS/WUD/Gatus, Jellyfin's public user list, whether Plex-style proxy trust applies. Also unchecked: the port-222 sshd's own config and WUD's state (it is listed as running but is not listening on 3000).
+Second run (with `curl`):
+
+- Filebrowser's default password is **rejected** (403) and Stash requires a login (401).
+- Gatus is open (200, information only). UMS's admin UI answers 200; whether it asks for a login is unchecked.
+- WUD is crash-looping (`Restarting (0)`), so port 3000 is not listening. FileFlows and Plex are not running.
+- The TV app containers last exited 10 days ago (`tv-home` and `tv-youtube` with 139, a segfault), so the kiosk browsers are not running now.
+- The only SFTP user is `matt` (not in `docker` or `sudo`). The port-222 sshd uses `/etc/ssh/omv_sftp_config`, which has not been read yet.
+- The Jellyfin public-user probe hit a redirect (base URL), so it needs `/jellyfin/Users/Public`.
+- `curl -i http://media.mlev.net/jellyfin/` from a machine **outside the LAN** returned Jellyfin's own 302 over plain HTTP, so the bypass in finding 1 is live on the internet.
 
 ## 1. Attack surface: WAN vs LAN
 
@@ -53,7 +61,7 @@ Other LAN-only exposures:
 
 ### High
 
-**1. Plain-HTTP bypass of the HTTPS redirect (reproduced).** `default.conf` puts `if ($needs_https) { return 301 ...; }` inside `location /`, then includes the service `location` blocks *inside* it. A nested location that matches never runs the outer `if`, so an internet client gets `/jellyfin/`, `/audiobookshelf`, `/files/`, `/stash/` and `/help/` over plain HTTP on port 80; only `/` and unmatched paths redirect. Logins and session tokens cross the internet in cleartext. Reproduced on `nginx:alpine` 1.31.2 with a client outside the "LAN" geo range: the service paths returned 200, with the fix below they return 301 and the ACME path is still served. *Fix* (tested):
+**1. Plain-HTTP bypass of the HTTPS redirect (reproduced locally; confirmed live from outside the LAN).** `default.conf` puts `if ($needs_https) { return 301 ...; }` inside `location /`, then includes the service `location` blocks *inside* it. A nested location that matches never runs the outer `if`, so an internet client gets `/jellyfin/`, `/audiobookshelf`, `/files/`, `/stash/` and `/help/` over plain HTTP on port 80; only `/` and unmatched paths redirect. Logins and session tokens cross the internet in cleartext. Reproduced on `nginx:alpine` 1.31.2 with a client outside the "LAN" geo range: the service paths returned 200, with the fix below they return 301 and the ACME path is still served. *Fix* (tested):
 
 ```nginx
 map "$needs_https:$uri" $force_https {
@@ -68,6 +76,13 @@ server {
     location / { include /etc/nginx/conf.d/locations/*.conf; }    # no `if` here any more
 }
 ```
+
+Confirmed with `curl -i http://media.mlev.net/jellyfin/` from outside the LAN: Jellyfin's own 302 came back instead of a 301 to HTTPS. Audiobookshelf, Navidrome, Filebrowser and Stash are routed the same way. When the fix is deployed:
+
+- Off-LAN clients saved with an `http://` address will fail to log in (the 301 turns the login POST into a GET). That is the intent: switch them to `https://`.
+- Anyone who ever logged in over `http://` from outside the LAN should change their password and revoke old tokens (Jellyfin: Dashboard → Devices and API keys; the other apps have equivalents).
+- Optional: `add_header Strict-Transport-Security "max-age=86400" always;` on the 443 server. Browsers cache HSTS, so start short and raise it once everything works.
+- Re-run the same `curl` from outside the LAN; it should be a 301 to `https://`.
 
 **2. Three containers hold the Docker socket, which is root on the host.** `certbot-renew` (read-write), `tv-hub` (read-write plus `SYS_ADMIN`) and `wud`. The `:ro` on WUD's mount does **not** make the API read-only; the socket still accepts "create a privileged container mounting `/`". Any code execution in one of these = host root, then everything on the box. See section 3 for the replacement for each.
 
@@ -130,9 +145,9 @@ server {
 **Do first (small changes, large effect)**
 
 1. Apply the nginx fix in finding 1.
-2. Change the Filebrowser admin password now; remove the default from `filebrowser/env.sh` and `docs/FilebrowserGuide.md` (generate one).
-3. Run `host/security-audit.sh`; enable auth on whatever it reports as open (Stash, FileFlows, Kodi web, UMS, WUD).
-4. Router: confirm only 80, 443, 8443 (and 222 if used) are forwarded, UPnP is off, and IPv6 inbound is not open to the server.
+2. Filebrowser's default password is rejected on this server, but `filebrowser/env.sh` and `docs/FilebrowserGuide.md` still ship `hellofilebrowser` for new installs: remove the default and generate one.
+3. Audit result: Stash requires a login. Still to check: whether UMS's admin UI (9001) asks for a login (open it from another LAN machine); Gatus is open, so bind it to localhost or put it behind nginx. Enable auth on FileFlows, Kodi and WUD before turning them on.
+4. Router: confirm only 80, 443, 8443 (and 222 if used) are forwarded and UPnP is off. IPv6 is not an exposure today (the server has only link-local addresses); recheck if a global prefix is ever assigned.
 5. Take Filebrowser, Stash and FileFlows off the WAN. In their nginx locations: `if ($needs_https) { return 403; }` (that variable is the "not on a private range" flag), or better, reach them over a WireGuard tunnel on OPNsense.
 6. Bind published ports that nginx already proxies (8096, 13378, 4533, 8085, 9999) to `127.0.0.1`, and publish admin-only ports (8090, 3000, 19200, 8080, 9090) to `127.0.0.1` or remove them. Drop the plain-HTTP LAN exception so LAN clients use HTTPS via the domain.
 
@@ -149,6 +164,17 @@ server {
 12. Put the server on its own VLAN or DMZ in OPNsense. Allow LAN → server on only the ports clients need (443, 80, 8443, 445 if used, DNS), server → LAN denied except DNS/NTP and (for SSO) the office server's 443. Then even a full host compromise cannot touch the router UI, the office server or other devices. Do not let that VLAN reach OPNsense's management ports.
 13. Make fail2ban see LAN failures too (remove `192.168.0.0/16` from `ignoreip` or narrow it to your own admin machine), add CrowdSec or fail2ban for nginx 401/403, and send Gatus alerts.
 14. Keep an offline or immutable backup of `docker/` config and irreplaceable media.
+
+**Host quick wins (on the server, not in the repo)**
+
+- Disable `rpcbind` (no NFS is in use): `systemctl disable --now rpcbind.socket rpcbind.service`.
+- Turn LLMNR off in systemd-resolved: `LLMNR=no` in `/etc/systemd/resolved.conf.d/`, then restart `systemd-resolved`.
+- Enable the fail2ban `sshd` jail for ports 22 and 222 in OMV (every jail file under `/etc/fail2ban/jail.d` is currently `.disabled`). Remove `192.168.0.0/16` from `ignoreip` or narrow it to your admin machine.
+- Consider turning off avahi and WS-Discovery if no client needs them, and set `X11Forwarding no` in sshd.
+- Read `/etc/ssh/omv_sftp_config` (the port-222 sshd) and confirm it is key-only and chrooted.
+- Restrict OMV's workbench (8888, 4443) and SMB (445, 139) to the admin machine(s) with an OMV or nftables rule; Docker does not touch these host ports, so a normal host firewall works for them.
+- WUD is crash-looping (`docker logs --tail 30 wud`). Fix or leave it stopped; until the socket proxy is in place it is also a socket holder.
+- The TV apps crashed with exit 139 (segfault) ten days ago and have not run since, so the kiosk exposure is currently nil; revisit the sandbox and `/dev/input` findings before relying on them again.
 
 ## Scanning from outside
 
