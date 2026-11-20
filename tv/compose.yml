@@ -64,7 +64,7 @@ services:
       tv-render:
         condition: service_completed_successfully
     environment:
-      - APPS=home=tv-home,youtube=tv-youtube,jellyfin=tv-jellyfin
+      - APPS=home=tv-home,youtube=tv-youtube,jellyfin=tv-jellyfin,cast=tv-cast
       - REMOTE_DEVICES=${REMOTE_DEVICES:-}   # blank = every input device
       - HOME_KEY=${HOME_KEY:-KEY_HOMEPAGE}
       - SLEEP_KEY=${SLEEP_KEY:-}
@@ -128,3 +128,26 @@ services:
       - ./apps-rendered:/config:ro
       - ./jellyfin/entrypoint.sh:/entrypoint.sh:ro
       - ./data/jellyfin:/data   # keeps the server address and sign-in
+
+  # Moonlight
+  tv-cast:
+    <<: *tv-browser
+    build:
+      context: ./cast
+    image: homeserver-tv-cast:local
+    labels:
+      wud.watch: "false"
+    container_name: tv-cast
+    # Moonlight finds computers by mDNS, which doesn't cross Docker's bridge.
+    network_mode: host
+    environment:
+      - APP=cast
+      - HOME=/data
+      - XDG_CONFIG_HOME=/data/config
+      - XDG_CACHE_HOME=/data/cache
+    volumes:   # replaces the shared list, so repeats it
+      - /etc/localtime:/etc/localtime:ro
+      - /run/udev:/run/udev:ro
+      - ./apps-rendered:/config:ro
+      - ./cast/entrypoint.sh:/entrypoint.sh:ro
+      - ./data/cast:/data   # keeps pairings and settings

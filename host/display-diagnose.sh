@@ -74,7 +74,7 @@ else
 fi
 
 section "display containers"
-for c in tv-hub tv-home tv-youtube kodi; do
+for c in tv-hub tv-home tv-youtube tv-cast kodi; do
     if docker inspect "$c" >/dev/null 2>&1; then
         docker inspect -f "$c: status={{.State.Status}} running={{.State.Running}} restarts={{.RestartCount}} started={{.State.StartedAt}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}" "$c"
     else
@@ -85,7 +85,7 @@ done
 section "tv-hub log (last 40 lines)"
 docker logs --tail 40 tv-hub 2>&1
 
-for c in tv-home tv-youtube; do
+for c in tv-home tv-youtube tv-cast; do
     section "$c log (last 20 lines)"
     docker logs --tail 20 "$c" 2>&1
 done

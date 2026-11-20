@@ -38,6 +38,7 @@ APP_META = {
     "youtube": {"label": "YouTube", "color": "#ff0033"},
     "jellyfin": {"label": "Jellyfin", "color": "#8e5cf7"},
     "steam": {"label": "Steam", "color": "#1a9fff"},
+    "cast": {"label": "Cast", "color": "#2fb67c"},
 }
 
 # Common remote key names. Any other key can be given by its evtest code.

@@ -23,6 +23,7 @@ To take an update:
 3. Update the server as above.
 
 The Jellyfin TV app's version is pinned separately, as `JF_VERSION` in `tv/jellyfin/Dockerfile`; check its [releases](https://github.com/jellyfin/jellyfin-desktop/releases) by hand.
+So is the Moonlight app's, as `ML_VERSION` in `tv/cast/Dockerfile` ([releases](https://github.com/moonlight-stream/moonlight-qt/releases)).
 
 
 # Managing Users
@@ -135,3 +136,11 @@ Setup notes:
   - If none play, see `host/install-hdmi-audio-fix.sh`.
 - To change the TV settings, re-run `env-setup.sh`, then run `docker compose up -d`.
 - Troubleshooting: `sudo bash host/display-diagnose.sh`, and `docker logs tv-hub`.
+
+## Casting to the TV
+
+The **Cast** tile allows streaming to the server via [Sunshine](https://github.com/LizardByte/Sunshine).
+
+Setup on computer:
+1. Install and start Sunshine, then create login at `https://localhost:47990`.
+2. Computer Firewall: Allow TCP 47984, 47989, 48010 and UDP 47998-48000 from the LAN.
