@@ -11,9 +11,11 @@ To be done:
         - self-hostable service alternatives
 
 - ops scripts: reset audiobookshelf password, fetch PIN for jellyfin password reset
+	- add OliveTin for admin actions like resetting a user password
 - document my physical build
 
 - guide to downloading from Spotify: https://github.com/Shabinder/SpotiFlyer
 
 - turn docs into a github wiki
 - add screenshots to docs
+
